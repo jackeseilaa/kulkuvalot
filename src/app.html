@@ -1,0 +1,784 @@
+<title>Kulkuvalot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  color-scheme: dark;
+  --night:#060a11; --panel:#0c131d; --panel2:#111a27; --line:#1e2a3b; --line2:#2a3a50;
+  --text:#dde5ef; --muted:#8392a8; --brass:#d9a34b; --brass-ink:#1b1306;
+  --ok:#3ddc84; --bad:#ff6166;
+  --sans:"Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--night);color:var(--text);font:16px/1.45 var(--sans);-webkit-font-smoothing:antialiased}
+button,select,input{font:inherit;color:inherit}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:14px 32px}
+
+/* header */
+header{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;justify-content:space-between;padding-block:4px 14px}
+.brand{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.brand h1{margin:0;font-size:26px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.brand h1 span{color:var(--brass)}
+.brand p{margin:0;color:var(--muted);font-size:15px}
+.tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px}
+.tabs button{border:0;background:none;padding:6px 16px;border-radius:999px;cursor:pointer;font-weight:600;letter-spacing:.04em;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--brass);color:var(--brass-ink)}
+.tabs button:focus-visible,.btn:focus-visible,.seg button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+
+/* layout */
+.main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+@media (max-width:900px){.main{grid-template-columns:minmax(0,1fr)}}
+
+.stage-box{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#03060b;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.stage-box.drag{cursor:grabbing}
+.stage-box.can-drag{cursor:grab}
+#stage{display:block;width:100%;height:auto}
+.stage-tag{position:absolute;top:10px;left:12px;font:500 13px var(--mono);color:#6f7d92;letter-spacing:.06em;pointer-events:none}
+.stage-bearing{position:absolute;top:10px;right:12px;font:500 13px var(--mono);color:#6f7d92;pointer-events:none;text-align:right}
+.stage-hint{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:13px;color:#4f5c70;pointer-events:none}
+
+/* stage colours */
+.sky-dusk,.water-dusk{opacity:0;transition:opacity .6s ease}
+.hull{opacity:0;transition:opacity .6s ease}
+.reveal .sky-dusk,.reveal .water-dusk,.reveal .hull{opacity:1}
+.flash{animation:flash 1s steps(1,end) infinite}
+@keyframes flash{0%{opacity:1}50%{opacity:.06}}
+@media (prefers-reduced-motion:reduce){.flash{animation-duration:2s}.sky-dusk,.water-dusk,.hull{transition:none}}
+
+/* controls */
+.controls{display:grid;gap:12px;margin-top:12px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{border:1px solid var(--line2);background:var(--panel2);padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:600;letter-spacing:.02em}
+.btn:hover{border-color:#3b4f6b}
+.btn.primary{background:var(--brass);border-color:var(--brass);color:var(--brass-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn[disabled]{opacity:.4;cursor:default}
+select{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:8px 10px;min-width:0;flex:1 1 220px;max-width:100%}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.seg button{border:0;border-right:1px solid var(--line2);background:var(--panel2);padding:8px 12px;cursor:pointer;font-weight:600;color:var(--muted)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:#1d2a3c;color:var(--text);box-shadow:inset 0 -2px 0 var(--brass)}
+.angle{display:flex;align-items:center;gap:10px;flex:1 1 260px;min-width:0}
+.angle input{flex:1;accent-color:var(--brass);min-width:0}
+.angle output{font:500 14px var(--mono);color:var(--muted);white-space:nowrap;min-width:9.5em;text-align:right}
+.check{display:inline-flex;align-items:center;gap:8px;color:var(--muted);cursor:pointer}
+.check input{accent-color:var(--brass);width:18px;height:18px}
+
+/* side panel */
+.side{display:grid;gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+.card h2{margin:0 0 10px;font-size:21px;line-height:1.2;font-weight:600;text-wrap:balance}
+.card ul{margin:0;padding-left:18px;display:grid;gap:6px}
+.card li::marker{color:var(--brass)}
+.card p{margin:0}
+.muted{color:var(--muted)}
+.chip{display:inline-block;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border:1px solid #3a4a62;color:#a9b6c9;border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:2px}
+.tip{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);color:#b7c2d2;font-size:15px}
+.sector-wrap{display:flex;gap:14px;align-items:center}
+.sector-wrap svg{flex:0 0 132px;width:132px;height:132px}
+.legend{display:grid;gap:4px;font-size:14px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;vertical-align:0}
+
+/* quiz */
+.answers{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media (max-width:520px){.answers{grid-template-columns:1fr}}
+.answers button{text-align:left;border:1px solid var(--line2);background:var(--panel2);padding:10px 12px;border-radius:8px;cursor:pointer;font-weight:500;line-height:1.25;min-height:48px;display:flex;gap:10px;align-items:center}
+.answers button kbd{font:500 12px var(--mono);color:var(--muted);border:1px solid var(--line2);border-radius:4px;padding:0 5px;flex:0 0 auto}
+.answers button:hover:not([disabled]){border-color:#3b4f6b}
+.answers button[disabled]{cursor:default}
+.answers button.right{border-color:var(--ok);background:#0f2a1d}
+.answers button.wrong{border-color:var(--bad);background:#2d1216}
+.question{font-size:20px;font-weight:600;margin:0}
+.score{display:flex;gap:18px;font:500 14px var(--mono);color:var(--muted);flex-wrap:wrap;align-items:center}
+.score b{color:var(--text);font-weight:500}
+.verdict{font-weight:600}
+.verdict.ok{color:var(--ok)} .verdict.bad{color:var(--bad)}
+
+/* guide */
+.guide{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.guide .card h2{font-size:19px}
+.guide p+p{margin-top:8px}
+.credits{margin-top:18px;color:var(--muted);font-size:14px;max-width:70ch}
+kbd{font:500 12px var(--mono);border:1px solid var(--line2);border-radius:4px;padding:0 5px}
+a{color:var(--brass)}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>Kulku<span>valot</span></h1>
+      <p>Tunnista alus sen valoista pimeässä</p>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Osiot">
+      <button role="tab" id="tab-harjoittelu" aria-selected="true" data-view="harjoittelu">Harjoittelu</button>
+      <button role="tab" id="tab-tehtavat" aria-selected="false" data-view="tehtavat">Tehtävät</button>
+      <button role="tab" id="tab-ohje" aria-selected="false" data-view="ohje">Ohje</button>
+    </nav>
+  </header>
+
+  <div class="main" id="view-main">
+    <section>
+      <div class="stage-box" id="stageBox">
+        <svg id="stage" viewBox="0 0 1000 560" role="img" aria-label="Aluksen valot pimeässä">
+          <defs>
+            <linearGradient id="skyN" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#02040a"/><stop offset="1" stop-color="#0a1322"/></linearGradient>
+            <linearGradient id="skyD" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2c3850"/><stop offset=".75" stop-color="#5d6a80"/><stop offset="1" stop-color="#7d879a"/></linearGradient>
+            <linearGradient id="waterN" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#04080f"/><stop offset="1" stop-color="#010204"/></linearGradient>
+            <linearGradient id="waterD" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a3446"/><stop offset="1" stop-color="#151b26"/></linearGradient>
+          </defs>
+          <rect id="skyN" x="0" y="0" width="1000" height="560" fill="url(#skyN)"/>
+          <rect class="sky-dusk" x="0" y="0" width="1000" height="560" fill="url(#skyD)"/>
+          <g id="waterG"></g>
+          <g id="reflG"></g>
+          <g id="hullG" class="hull"></g>
+          <g id="lightG"></g>
+        </svg>
+        <div class="stage-tag" id="stageTag"></div>
+        <div class="stage-bearing" id="stageBearing"></div>
+        <div class="stage-hint" id="stageHint"></div>
+      </div>
+
+      <!-- practice controls -->
+      <div class="controls" id="practiceControls">
+        <div class="row">
+          <button class="btn" id="prevBtn" title="Edellinen (←)">◀ Edellinen</button>
+          <select id="vesselSel" aria-label="Valitse harjoitus"></select>
+          <button class="btn" id="nextBtn" title="Seuraava (→)">Seuraava ▶</button>
+          <button class="btn" id="randBtn" title="Satunnainen alus ja kulma (R)">Satunnainen</button>
+        </div>
+        <div class="row">
+          <div class="seg" role="group" aria-label="Katselusuunta" id="aspectSeg">
+            <button data-a="0">Edestä</button><button data-a="90">Oikealta</button><button data-a="180">Takaa</button><button data-a="270">Vasemmalta</button>
+          </div>
+          <label class="angle" for="angleIn">
+            <input type="range" id="angleIn" min="0" max="359" step="1" value="90" aria-label="Katselukulma">
+            <output id="angleOut"></output>
+          </label>
+        </div>
+        <div class="row">
+          <button class="btn primary" id="revealBtn" title="Välilyönti">Näytä alus</button>
+          <span class="muted" style="font-size:14px">Vedä kuvaa sivusuunnassa kääntääksesi alusta.</span>
+        </div>
+      </div>
+
+      <!-- quiz controls -->
+      <div class="controls" id="quizControls" hidden>
+        <div class="row" style="justify-content:space-between">
+          <div class="seg" role="group" aria-label="Tehtävätyyppi" id="quizSeg">
+            <button data-q="type" aria-pressed="true">Mikä alus?</button>
+            <button data-q="dir" aria-pressed="false">Mistä suunnasta?</button>
+          </div>
+          <label class="check"><input type="checkbox" id="obliqueIn"> Myös vinot kulmat</label>
+        </div>
+        <p class="question" id="question"></p>
+        <div class="answers" id="answers"></div>
+        <div class="row" style="justify-content:space-between">
+          <div class="score" id="score"></div>
+          <div class="row">
+            <button class="btn" id="resetScore">Nollaa</button>
+            <button class="btn primary" id="nextQ">Seuraava tehtävä</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side" id="side">
+      <div class="card" id="infoCard"></div>
+      <div class="card">
+        <p class="eyebrow">Missä olet aluksesta</p>
+        <div class="sector-wrap">
+          <svg id="sector" viewBox="0 0 160 160" aria-label="Valojen näkyvyyssektorit"></svg>
+          <div class="legend">
+            <span><i style="background:#37ff8b"></i>Oikea sivuvalo 112,5°</span>
+            <span><i style="background:#ff2d3f"></i>Vasen sivuvalo 112,5°</span>
+            <span><i style="background:#fff3d6"></i>Perävalo 135°</span>
+            <span><i style="background:transparent;border:1px dashed #9aa6b8"></i>Mastovalo 225°</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <section id="view-ohje" hidden>
+    <div class="guide">
+      <div class="card">
+        <p class="eyebrow">Harjoittelu</p>
+        <h2>Katso ensin, paljasta sitten</h2>
+        <p>Alus näkyy pimeässä pelkkinä valoina. Päättele, mikä alus on kyseessä ja mistä suunnasta sitä katsot, ja paina vasta sitten <b>Näytä alus</b>.</p>
+        <p>Kulmaa voi kääntää täysi ympyrä. Totuudenmukaisin tilanne on yleensä vino kulma, sillä toista alusta näkee harvoin suoraan sivulta, edestä tai takaa.</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">Tehtävät</p>
+        <h2>Kaksi tehtävätyyppiä</h2>
+        <p><b>Mikä alus?</b> Tunnista alus neljästä vaihtoehdosta. Vaihtoehdoissa ei ole aluksia, jotka näyttävät samasta suunnasta täsmälleen samoilta.</p>
+        <p><b>Mistä suunnasta?</b> Alus kerrotaan, ja sinä päättelet, näetkö sen edestä, oikealta, takaa vai vasemmalta. Tätä tietoa tarvitset väistämissääntöjen soveltamiseen.</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">Näppäimet</p>
+        <h2>Pikanäppäimet</h2>
+        <ul>
+          <li><kbd>←</kbd> <kbd>→</kbd> edellinen ja seuraava alus</li>
+          <li><kbd>A</kbd> <kbd>D</kbd> käännä alusta 15°</li>
+          <li><kbd>Välilyönti</kbd> näytä tai piilota alus</li>
+          <li><kbd>R</kbd> satunnainen alus ja kulma</li>
+          <li><kbd>1</kbd>–<kbd>4</kbd> vastaa tehtävään, <kbd>Enter</kbd> seuraava tehtävä</li>
+        </ul>
+      </div>
+      <div class="card">
+        <p class="eyebrow">Sektorit</p>
+        <h2>Mikä valo näkyy mistäkin</h2>
+        <ul>
+          <li><b>Mastovalo</b>: valkoinen, näkyy 225° keulan suuntaan</li>
+          <li><b>Sivuvalot</b>: vihreä oikealla (styyrpuuri), punainen vasemmalla (paapuuri), kumpikin 112,5°</li>
+          <li><b>Perävalo</b>: valkoinen, näkyy 135° taakse</li>
+          <li><b>Hinausvalo</b>: keltainen, sama sektori kuin perävalolla</li>
+          <li><b>Ympäri näköpiirin näkyvä valo</b>: näkyy 360°</li>
+        </ul>
+      </div>
+    </div>
+    <p class="credits">Tämä harjoitus on laadittu Pekka Jylhän (merenkulun asiantuntija) ja Tapio Säypön (toteutus) Kulkuvalot-harjoitussivuston pohjalta. Alusten valot ja kansalliset erityisvalot (jäänmurtaja, viranomaisalus ja lossi) noudattavat alkuperäistä aineistoa. Tarkista ajantasaiset määräykset kansainvälisistä meriteiden säännöistä (COLREG) ja Traficomin ohjeista. Tämä sovellus on harjoitteluväline, eikä sitä ole tarkoitettu navigointiin.</p>
+  </section>
+</div>
+
+<script>
+(() => {
+'use strict';
+const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
+const COL = { w:'#fff3d6', r:'#ff2d3f', g:'#37ff8b', y:'#ffc933', b:'#3d7dff' };
+const CNAME = { w:'valkoinen', r:'punainen', g:'vihreä', y:'keltainen', b:'sininen' };
+
+/* ---------- geometry primitives (ship coords: x forward, y starboard, z up) ---------- */
+const S = (pts) => ({ t:'solid', pts });
+const B = (x0, x1, hw, z0, z1, yc = 0) => S([[x0,yc-hw,z0],[x0,yc+hw,z0],[x1,yc-hw,z0],[x1,yc+hw,z0],[x0,yc-hw,z1],[x0,yc+hw,z1],[x1,yc-hw,z1],[x1,yc+hw,z1]]);
+const Ln = (a, b, w = 2.2) => ({ t:'line', a, b, w });
+const Rope = (a, b, sag) => ({ t:'rope', a, b, sag });
+const Flag = (pts, fill) => ({ t:'flag', pts, fill });
+function hull(xs, xb, hw, fb, o = {}) {
+  const L = xb - xs, rb = o.rb ?? L * .16, rs = o.rs ?? L * .03, sh = o.sh ?? 0, sd = xb - L * .22;
+  return S([[xs,hw,fb],[xs,-hw,fb],[sd,hw,fb],[sd,-hw,fb],[xb,0,fb+sh],
+            [xs+rs,hw*.85,0],[xs+rs,-hw*.85,0],[xb-rb-L*.12,hw*.8,0],[xb-rb-L*.12,-hw*.8,0],[xb-rb,0,0]]);
+}
+
+/* ---------- lights ---------- */
+const Lt = (c, s, x, y, z, f) => ({ c, s, p:[x,y,z], f:!!f });
+const mast = (x, z) => Lt('w','mast',x,0,z);
+const sides = (x, hw, z) => [Lt('g','stb',x,hw,z), Lt('r','port',x,-hw,z)];
+const stern = (x, z) => Lt('w','stern',x,0,z);
+const ar = (c, x, z, y = 0, f) => Lt(c,'all',x,y,z,f);
+const stack = (cols, x, ztop, gap, y = 0) => cols.map((c, i) => ar(c, x, ztop - i * gap, y));
+
+function colorsAt(l, a) {
+  switch (l.s) {
+    case 'all': return [l.c];
+    case 'mast': return (a <= 112.5 + EPS || a >= 247.5 - EPS) ? [l.c] : [];
+    case 'stb': return (a <= 112.5 + EPS || a >= 360 - EPS) ? [l.c] : [];
+    case 'port': return (a >= 247.5 - EPS || a <= EPS) ? [l.c] : [];
+    case 'stern': return (a >= 112.5 - EPS && a <= 247.5 + EPS) ? [l.c] : [];
+    case 'tri': {
+      if (a <= EPS || a >= 360 - EPS) return ['g','r'];
+      if (a < 112.5) return ['g'];
+      if (a > 247.5) return ['r'];
+      return ['w'];
+    }
+  }
+  return [];
+}
+
+/* ---------- vessel bodies ---------- */
+function smallShip() {
+  return { g:1.15, parts:[
+    hull(-20,20,4,3.6,{rb:4,rs:.8,sh:.8}),
+    B(-9,7,3.4,3.6,6.2), B(-6,5,3,6.2,8.6), B(-3,3.5,2.3,8.6,9.4),
+    Ln([0,0,9.4],[0,0,15.4]) ] };
+}
+const SM = { mast:[0,15], side:[3,4.1,5.2], stern:[-20,3.9] };
+function smallLights(){ return [mast(...SM.mast), ...sides(...SM.side), stern(...SM.stern)]; }
+function smallMoving(){ return [...sides(...SM.side), stern(...SM.stern)]; }
+
+function bigShip(foreTop = 22.6) {
+  return { g:2.8, parts:[
+    hull(-50,50,8,8,{rb:12,rs:2.5,sh:2}),
+    B(-47,-22,7.6,8,12), B(-45,-25,7,12,16), B(-43,-28,6.4,16,20), B(-48,-44.5,2.4,12,22.5),
+    Ln([-35,0,20],[-35,0,34.4]), Ln([41,0,9],[41,0,foreTop]) ] };
+}
+const BG = { mastA:[-35,34], mastF:[41,22], side:[-30,8.2,14], stern:[-50,9] };
+function bigLights(){ return [mast(...BG.mastA), mast(...BG.mastF), ...sides(...BG.side), stern(...BG.stern)]; }
+
+function fishBoat() {
+  return { g:1.45, parts:[
+    hull(-15,15,3.6,3,{rb:3.5,rs:.6,sh:1}),
+    B(-12,-4,3,3,6), B(-11,-5,2.6,6,8), Ln([9,0,3.6],[9,0,14.6]) ] };
+}
+const FB = { side:[-6,3.7,4.6], stern:[-15,3.3] };
+
+function sailBoat() {
+  return { g:.95, parts:[
+    hull(-6,6,1.8,1.1,{rb:1.3,rs:.4,sh:.3}), B(-3,1,1.1,1.1,1.8),
+    Ln([1,0,1.8],[1,0,16.2],2),
+    S([[.8,0,15.6],[.8,0,2.4],[-5,0,2.6],[-2.2,1.3,7.5],[-.3,.8,12]]),
+    S([[1.2,0,13.8],[5.7,0,1.7],[-.2,.2,2.2],[2.6,1.2,6.5]]) ] };
+}
+const SB = () => [...sides(5.2,.45,1.5), stern(-6,1.3)];
+
+function tugAndTow(x0t, x0w, n) {
+  const parts = [
+    hull(x0t-12,x0t+12,3.6,2.8,{rb:3,rs:.5,sh:.8}), B(x0t-5,x0t+5,2.8,2.8,5), B(x0t-3,x0t+4,2.4,5,7),
+    Ln([x0t+2,0,7],[x0t+2,0,14]), Ln([x0t-9,0,2.8],[x0t-9,0,5.2]),
+    hull(x0w-15,x0w+15,4,3.2,{rb:3,rs:.6,sh:.6}), B(x0w-13,x0w-5,3.2,3.2,6.2), B(x0w-12,x0w-7,2.6,6.2,7.6),
+    Ln([x0w-9,0,7.6],[x0w-9,0,10]),
+    Rope([x0t-12,0,3.2],[x0w+15,0,3.4], 1.6) ];
+  const lights = [
+    ...stack(Array(n).fill('w'), x0t+2, 13.6, 1.35).map(l => (l.s = 'mast', l)),
+    ...sides(x0t+1,3.7,4.2), stern(x0t-12,3.1), Lt('y','stern',x0t-12,0,4.45),
+    ...sides(x0w+11,4.1,3.9), stern(x0w-15,3.6) ];
+  return { g:1.35, parts, lights };
+}
+
+/* ---------- vessel catalogue ---------- */
+const MAST_T = 'Mastovalo: valkoinen, näkyy 225° eteenpäin';
+const SIDES_T = 'Sivuvalot: vihreä oikealla, punainen vasemmalla';
+const STERN_T = 'Perävalo: valkoinen, näkyy 135° taaksepäin';
+const V = [
+  { id:'kone-alle50', short:'Konealus kulussa, alle 50 m', name:'Kulussa oleva konealus, alle 50 m', grp:'kone', moving:true,
+    desc:[MAST_T, SIDES_T, STERN_T],
+    tip:'Yksi mastovalo ja sivuvalot. Jos näet vain vihreän, katsot aluksen oikeaa kylkeä ja alus kulkee edessäsi vasemmalta oikealle.',
+    build(){ const b = smallShip(); return { ...b, lights: smallLights() }; } },
+  { id:'kone-yli50', short:'Konealus kulussa, yli 50 m', name:'Kulussa oleva konealus, yli 50 m', grp:'kone', moving:true,
+    desc:['Kaksi mastovaloa: takimmainen on ylempänä', SIDES_T, STERN_T],
+    tip:'Mastovalojen korkeusero näyttää kulkusuunnan: alempi valo on keulassa.',
+    build(){ const b = bigShip(); return { ...b, lights: bigLights() }; } },
+  { id:'jaanmurtaja', short:'Jäänmurtaja kulussa', name:'Kulussa oleva jäänmurtaja, yli 50 m', grp:'kone', moving:true, nat:true,
+    desc:['Konealuksen kulkuvalot (yli 50 m)', 'Lisäksi sininen ympäri näköpiirin näkyvä valo'],
+    tip:'Sininen valo mastovalojen lisäksi. Kansallinen erityisvalo.',
+    build(){ const b = bigShip(); b.parts.push(Ln([-31,-2.6,20],[-31,-2.6,29.4])); return { ...b, lights:[...bigLights(), ar('b',-31,29.7,-2.6)] }; } },
+  { id:'ilmatyyny', short:'Ilmatyynyalus kulussa', name:'Kulussa oleva ilmatyynyalus', grp:'kone', moving:true,
+    desc:['Konealuksen kulkuvalot', 'Lisäksi keltainen vilkkuva ympäri näköpiirin näkyvä valo'],
+    tip:'Keltainen vilkkuva valo erottaa ilmatyynyaluksen tavallisesta konealuksesta.',
+    build(){
+      const ring = []; for (let i = 0; i < 20; i++) { const a = i / 20 * Math.PI * 2; ring.push([12*Math.cos(a),5.5*Math.sin(a),.2],[12*Math.cos(a),5.5*Math.sin(a),2.6]); }
+      return { g:1.1, parts:[S(ring), B(-7,6,4.2,2.6,5.2), Ln([7,0,5.2],[7,0,12.6]), Ln([-9,0,2.6],[-9,0,8.2])],
+        lights:[mast(7,12.4), ar('y',-9,8.5,0,true), ...sides(0,5.6,1.7), stern(-12,1.9)] }; } },
+  { id:'virka', short:'Viranomaisalus tehtävissä', name:'Poliisin, tullin, rajavartiolaitoksen, puolustusvoimien, palokunnan tai meripelastuksen alus virka- tai pelastustehtävissä', grp:'kone', moving:true, nat:true,
+    desc:['Konealuksen kulkuvalot', 'Lisäksi sininen vilkkuva valo'],
+    tip:'Sininen vilkkuva valo tarkoittaa virka- tai pelastustehtävää. Kansallinen erityisvalo.',
+    build(){ const b = smallShip(); b.parts.push(Ln([2,-1.3,9.4],[2,-1.3,12.6])); return { ...b, lights:[...smallLights(), ar('b',2,12.9,-1.3,true)] }; } },
+  { id:'hinaus-alle200', short:'Hinaus, alle 200 m', name:'Hinaus, hinauksen pituus alle 200 m', grp:'hinaus', moving:true,
+    desc:['Hinaaja: kaksi mastovaloa pystyrivissä', 'Hinaaja: sivuvalot, perävalo ja sen yläpuolella keltainen hinausvalo', 'Hinattava: sivuvalot ja perävalo'],
+    tip:'Takaa näet keltaisen valon valkoisen perävalon yläpuolella. Älä koskaan aja hinaajan ja hinattavan välistä.',
+    build(){ return tugAndTow(34,-34,2); } },
+  { id:'hinaus-yli200', short:'Hinaus, yli 200 m', name:'Hinaus, hinauksen pituus yli 200 m', grp:'hinaus', moving:true,
+    desc:['Hinaaja: kolme mastovaloa pystyrivissä', 'Hinaaja: sivuvalot, perävalo ja keltainen hinausvalo', 'Hinattava: sivuvalot ja perävalo'],
+    tip:'Kolme mastovaloa tarkoittaa, että hinaus on yli 200 m pitkä.',
+    build(){ return tugAndTow(50,-50,3); } },
+  { id:'purje', short:'Purjealus kulussa', name:'Kulussa oleva purjealus', grp:'purje', moving:true,
+    desc:[SIDES_T, STERN_T, 'Ei mastovaloa'],
+    tip:'Pelkät sivuvalot ilman mastovaloa: purjealus. Jos näet myös mastovalon, alus kulkee koneella.',
+    build(){ return { ...sailBoat(), lights: SB() }; } },
+  { id:'purje-pv', short:'Purjealus, punainen yllä ja vihreä alla', name:'Kulussa oleva purjealus, lisävalot mastossa', grp:'purje', moving:true,
+    desc:[SIDES_T, STERN_T, 'Lisäksi saa näyttää mastossa kaksi ympäri näköpiirin näkyvää valoa: ylempi punainen, alempi vihreä'],
+    tip:'Punainen vihreän yläpuolella mastossa. Näitä ei saa käyttää yhdessä kolmivärilyhdyn kanssa.',
+    build(){ return { ...sailBoat(), lights:[...SB(), ar('r',1,15.9), ar('g',1,14.95)] }; } },
+  { id:'purje-3v', short:'Purjealus, kolmivärilyhty', name:'Kulussa oleva purjealus, alle 20 m, kolmivärilyhty mastossa', grp:'purje', moving:true,
+    desc:['Mastonhuipussa yhdistetty lyhty: vihreä, punainen ja valkoinen sektori', 'Korvaa sivuvalot ja perävalon'],
+    tip:'Alle 20 m purjealus saa käyttää mastonhuipun yhdistettyä lyhtyä. Se näkyy kauas, mutta korkealla oleva valo on vaikea hahmottaa lähietäisyydeltä.',
+    build(){ return { ...sailBoat(), lights:[Lt('w','tri',1,0,16.5)] }; } },
+  { id:'kone-alle7', short:'Konealus alle 7 m, enintään 7 kn', name:'Konealus, alle 7 m ja enintään 7 solmua', grp:'kone',
+    desc:['Yksi ympäri näköpiirin näkyvä valkoinen valo', 'Mikäli mahdollista, myös sivuvalot'],
+    tip:'Yksittäinen valkoinen valo voi olla myös ankkurissa oleva alus tai takaa nähty alus. Seuraa, muuttuuko suuntima.',
+    build(){ return { g:.45, parts:[hull(-2.5,2.5,.9,.6,{rb:.5,rs:.1,sh:.25}), B(-3.1,-2.5,.22,.1,1.2), Ln([-2.3,0,.6],[-2.3,0,1.95],2)], lights:[ar('w',-2.3,2.05)] }; } },
+  { id:'trooli', short:'Laahuskalastus, liikkuu', name:'Laahuskalastusta harjoittava alus, liikkuu veden halki', grp:'kala', moving:true,
+    desc:['Ympäri näköpiirin: vihreä ylempänä, valkoinen alempana', SIDES_T, STERN_T],
+    tip:'Vihreä yllä ja valkoinen alla: troolari.',
+    build(){ const b = fishBoat(); return { ...b, lights:[...stack(['g','w'],9,14,b.g), ...sides(...FB.side), stern(...FB.stern)] }; } },
+  { id:'trooli-seis', short:'Laahuskalastus, ei liiku', name:'Laahuskalastusta harjoittava alus, ei liiku veden halki', grp:'kala',
+    desc:['Ympäri näköpiirin: vihreä ylempänä, valkoinen alempana', 'Ei sivuvaloja eikä perävaloa'],
+    tip:'Kun alus ei liiku veden halki, sivuvalot ja perävalo sammutetaan.',
+    build(){ const b = fishBoat(); return { ...b, lights: stack(['g','w'],9,14,b.g) }; } },
+  { id:'kalastus', short:'Muu kalastus, liikkuu', name:'Muuta kuin laahuskalastusta harjoittava alus, liikkuu veden halki', grp:'kala', moving:true,
+    desc:['Ympäri näköpiirin: punainen ylempänä, valkoinen alempana', SIDES_T, STERN_T],
+    tip:'Punainen yllä ja valkoinen alla: kalastusalus, ei troolari. Käännettynä (valkoinen punaisen yllä) se olisi luotsi.',
+    build(){ const b = fishBoat(); return { ...b, lights:[...stack(['r','w'],9,14,b.g), ...sides(...FB.side), stern(...FB.stern)] }; } },
+  { id:'kalastus-pyydys', short:'Muu kalastus, pyydys yli 150 m', name:'Muuta kuin laahuskalastusta harjoittava alus, pyydys yli 150 m, ei liiku veden halki', grp:'kala',
+    desc:['Ympäri näköpiirin: punainen ylempänä, valkoinen alempana', 'Lisäksi valkoinen ympäri näköpiirin näkyvä valo pyydyksen suuntaan'],
+    tip:'Sivummalla oleva valkoinen valo näyttää, mihin suuntaan pyydys on laskettu. Kierrä toiselta puolelta.',
+    build(){ const b = fishBoat(); b.parts.push(Ln([9,0,10.5],[2,4.6,7.6],1.6)); return { ...b, lights:[...stack(['r','w'],9,14,b.g), ar('w',2,7.4,4.6)] }; } },
+  { id:'sukellus', short:'Sukellustoiminta', name:'Sukellustoimintaa harjoittava alus', grp:'rajoitettu',
+    desc:['Ympäri näköpiirin: punainen, valkoinen, punainen pystyrivissä', 'Päivällä A-lipun jäykkä jäljennös'],
+    tip:'Sukeltajia vedessä. Pidä reilu etäisyys ja aja hitaasti.',
+    build(){ const b = smallShip();
+      b.parts.push(Ln([-17,0,3.6],[-17,0,10.6],1.8), Flag([[-17,0,10.4],[-14.4,0,10.4],[-14.4,0,8.1],[-17,0,8.1]],'#f1f1ee'),
+        Flag([[-14.4,0,10.4],[-11.4,0,10.4],[-12.8,0,9.25],[-11.4,0,8.1],[-14.4,0,8.1]],'#1d5fd8'));
+      return { ...b, lights: stack(['r','w','r'],0,15,b.g) }; } },
+  { id:'nuc', short:'Ohjailukyvytön, ei liiku', name:'Ohjailukyvytön alus, ei liiku veden halki', grp:'rajoitettu',
+    desc:['Kaksi punaista ympäri näköpiirin näkyvää valoa pystyrivissä', 'Ei mastovaloa, sivuvaloja eikä perävaloa'],
+    tip:'Kaksi punaista päällekkäin: alus ei pysty väistämään.',
+    build(){ const b = smallShip(); b.parts.push(Ln([16,0,4],[16,0,12.3])); return { ...b, lights: stack(['r','r'],16,12.5,b.g) }; } },
+  { id:'nuc-kulku', short:'Ohjailukyvytön, liikkuu', name:'Ohjailukyvytön alus, liikkuu veden halki', grp:'rajoitettu', moving:true,
+    desc:['Kaksi punaista ympäri näköpiirin näkyvää valoa pystyrivissä', SIDES_T, STERN_T, 'Ei mastovaloa'],
+    tip:'Sivuvalot kertovat, että alus liikkuu, vaikka se ei pysty ohjailemaan.',
+    build(){ const b = smallShip(); b.parts.push(Ln([16,0,4],[16,0,12.3])); return { ...b, lights:[...stack(['r','r'],16,12.5,b.g), ...smallMoving()] }; } },
+  { id:'ram', short:'Ohjailukyvyltään rajoitettu, ei liiku', name:'Ohjailukyvyltään rajoitettu alus, ei liiku veden halki', grp:'rajoitettu',
+    desc:['Ympäri näköpiirin: punainen, valkoinen, punainen pystyrivissä'],
+    tip:'Punainen, valkoinen ja punainen: alus tekee työtä, joka rajoittaa sen ohjailua.',
+    build(){ const b = smallShip(); b.parts.push(Ln([16,0,4],[16,0,12.3])); return { ...b, lights: stack(['r','w','r'],16,12.5,b.g) }; } },
+  { id:'ram-kulku', short:'Ohjailukyvyltään rajoitettu, liikkuu', name:'Ohjailukyvyltään rajoitettu alus, liikkuu veden halki', grp:'rajoitettu', moving:true,
+    desc:['Ympäri näköpiirin: punainen, valkoinen, punainen pystyrivissä', MAST_T, SIDES_T, STERN_T],
+    tip:'Liikkuessaan alus näyttää lisäksi konealuksen kulkuvalot.',
+    build(){ const b = smallShip(); b.parts.push(Ln([16,0,4],[16,0,12.3])); return { ...b, lights:[...stack(['r','w','r'],16,12.5,b.g), ...smallLights()] }; } },
+  { id:'syvays', short:'Syväyksen rajoittama', name:'Syväyksensä rajoittama alus', grp:'rajoitettu', moving:true,
+    desc:['Kolme punaista ympäri näköpiirin näkyvää valoa pystyrivissä', 'Konealuksen kulkuvalot (yli 50 m)'],
+    tip:'Kolme punaista päällekkäin: alus on sidottu syvään väylään. Älä vaikeuta sen kulkua.',
+    build(){ const b = bigShip(); return { ...b, lights:[...bigLights(), ...stack(['r','r','r'],-35,31.2,b.g)] }; } },
+  { id:'miina', short:'Miinanraivaaja', name:'Miinanraivaustehtävissä oleva alus, kulussa', grp:'rajoitettu', moving:true,
+    desc:['Kolme vihreää ympäri näköpiirin näkyvää valoa: yksi keulamaston huipussa ja kaksi raakapuun päissä', 'Konealuksen kulkuvalot'],
+    tip:'Kolme vihreää kolmiossa. Aluksen lähelle ei saa mennä, vaan on pysyttävä yli 1000 metrin päässä.',
+    build(){ const b = bigShip(26.4); b.parts.push(Ln([41,-3.6,23.6],[41,3.6,23.6])); return { ...b,
+      lights:[mast(...BG.mastA), mast(41,20.4), ...sides(...BG.side), stern(...BG.stern), ar('g',41,26.7), ar('g',41,23.2,-3.6), ar('g',41,23.2,3.6)] }; } },
+  { id:'ruoppaus', short:'Ruoppaus, liikkuu', name:'Ruoppausta tai vedenalaista työtä tekevä alus, liikkuu veden halki', grp:'rajoitettu', moving:true,
+    desc:['Punainen, valkoinen, punainen pystyrivissä', 'Esteen puolella kaksi punaista, ohitettavalla puolella kaksi vihreää', MAST_T, SIDES_T, STERN_T],
+    tip:'Ohita vihreiden valojen puolelta. Punaiset valot näyttävät esteen puolen.',
+    build(){ const b = dredger(); return { ...b, lights:[...dredgeSig(b.g), ...smallLights()] }; } },
+  { id:'ruoppaus-ank', short:'Ruoppaus, ankkurissa', name:'Ruoppausta tai vedenalaista työtä tekevä alus, ankkuroituna', grp:'rajoitettu',
+    desc:['Punainen, valkoinen, punainen pystyrivissä', 'Esteen puolella kaksi punaista, ohitettavalla puolella kaksi vihreää', 'Ei ankkurivaloja'],
+    tip:'Ankkurissa oleva ruoppaaja ei näytä ankkurivaloja vaan pelkät työvalot.',
+    build(){ const b = dredger(); b.parts.push(Ln([19.6,0,3.4],[23.5,0,0],1.6)); return { ...b, lights: dredgeSig(b.g) }; } },
+  { id:'ankkuri-alle50', short:'Ankkurissa, alle 50 m', name:'Ankkuroitu alus, alle 50 m', grp:'ankkuri',
+    desc:['Yksi valkoinen ympäri näköpiirin näkyvä valo keulaosassa'],
+    tip:'Yksi valkoinen valo, joka ei liiku. Sama valo voi olla myös pieni konevene: seuraa suuntimaa.',
+    build(){ const b = smallShip(); b.parts.push(Ln([18.2,0,4.2],[18.2,0,8]), Ln([19.6,0,3.4],[23.5,0,0],1.6)); return { ...b, lights:[ar('w',18.2,8.2)] }; } },
+  { id:'ankkuri-yli50', short:'Ankkurissa, yli 50 m', name:'Ankkuroitu alus, yli 50 m', grp:'ankkuri',
+    desc:['Kaksi valkoista ympäri näköpiirin näkyvää valoa: keulassa ylempänä, perässä alempana', 'Kansivalot saa lisäksi pitää päällä'],
+    tip:'Kahden valkoisen valon korkeusero näyttää, missä keula on.',
+    build(){ const b = anchoredBig(); return { ...b, lights:[ar('w',41,22.9), ar('w',-49,12.7)] }; } },
+  { id:'luotsi', short:'Luotsialus tehtävissä', name:'Luotsaustehtävissä oleva alus', grp:'kone', moving:true,
+    desc:['Ympäri näköpiirin: valkoinen ylempänä, punainen alempana', SIDES_T, STERN_T],
+    tip:'Valkoinen punaisen yllä: luotsi. Käännettynä (punainen yllä) se olisi kalastusalus.',
+    build(){ const b = smallShip(); return { ...b, lights:[...stack(['w','r'],0,15,b.g), ...smallMoving()] }; } },
+  { id:'karilla', short:'Karilla, yli 50 m', name:'Karilla oleva alus, yli 50 m', grp:'ankkuri',
+    desc:['Ankkurivalot: keulassa ylempi ja perässä alempi valkoinen', 'Lisäksi kaksi punaista ympäri näköpiirin näkyvää valoa pystyrivissä'],
+    tip:'Ankkurivalot ja kaksi punaista: vesi on matalaa. Pysy kaukana.',
+    build(){ const b = anchoredBig(); return { ...b, lights:[ar('w',41,22.9), ar('w',-49,12.7), ...stack(['r','r'],-35,31.2,b.g)] }; } },
+  { id:'lossi', short:'Lossi', name:'Lossi', grp:'ankkuri', nat:true, angles:[[55,125],[235,305]],
+    desc:['Kolme punaista ympäri näköpiirin näkyvää valoa kolmion muodossa'],
+    tip:'Lossi kulkee vaijerin varassa. Vaijerit voivat olla aivan pinnan tuntumassa, joten älä aja lossin ja rannan välistä.',
+    build(){ return { g:1.1, parts:[hull(-15,15,5,1.6,{rb:1.2,rs:1.2}), B(-7,7,2.4,1.6,3.6), Ln([0,0,3.6],[0,0,11.4]), Ln([-2.3,0,10],[2.3,0,10]),
+      Ln([15,0,.9],[27,0,-.1],1.4), Ln([-15,0,.9],[-27,0,-.1],1.4)],
+      lights:[ar('r',0,11.6), ar('r',-2.3,9.75), ar('r',2.3,9.75)] }; } },
+];
+function dredger() {
+  const b = smallShip();
+  b.parts.push(Ln([16,0,4],[16,0,12.3]), Ln([10,0,3.6],[10,0,11]), Ln([10,0,10.8],[10,-4.7,10.8]), Ln([6,0,3.6],[6,0,11]), Ln([6,0,10.8],[6,4.7,10.8]));
+  return b;
+}
+function dredgeSig(g) {
+  return [...stack(['r','w','r'],16,12.5,g), ...stack(['r','r'],10,10.35,g,-4.7), ...stack(['g','g'],6,10.35,g,4.7)];
+}
+function anchoredBig() {
+  const b = bigShip();
+  b.parts.push(Ln([-49,0,8],[-49,0,12.5]), Ln([48,0,8.8],[55,0,0],1.8));
+  return b;
+}
+
+/* ---------- model preparation (center + fit) ---------- */
+const cache = new Map();
+function model(i) {
+  if (cache.has(i)) return cache.get(i);
+  const m = V[i].build();
+  const all = [];
+  for (const p of m.parts) {
+    if (p.t === 'line' || p.t === 'rope') all.push(p.a, p.b); else all.push(...p.pts);
+  }
+  for (const l of m.lights) all.push(l.p);
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, zMax = 0;
+  for (const p of all) { x0 = Math.min(x0,p[0]); x1 = Math.max(x1,p[0]); y0 = Math.min(y0,p[1]); y1 = Math.max(y1,p[1]); zMax = Math.max(zMax,p[2]); }
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  let R = 0; for (const p of all) R = Math.max(R, Math.hypot(p[0]-cx, p[1]-cy));
+  const sx0 = (W * .44) / Math.max(R, 7), sz0 = (HY - TOP) / Math.max(zMax + .6, 6);
+  const sz = Math.min(sz0, sx0 * 2.2), sx = Math.min(sx0, sz * 1.25);
+  const res = { ...m, cx, cy, sx, sz, lr: Math.max(3.5, Math.min(8, .4 * m.g * sz)) };
+  cache.set(i, res);
+  return res;
+}
+function projector(m, th) {
+  const t = th * D2R, c = Math.cos(t), s = Math.sin(t), ce = Math.cos(ELEV * D2R), se = Math.sin(ELEV * D2R);
+  return (p) => {
+    const x = p[0] - m.cx, y = p[1] - m.cy;
+    return [W / 2 + (x * s - y * c) * m.sx, HY - p[2] * m.sz * ce + (x * c + y * s) * m.sx * se, x * c + y * s];
+  };
+}
+function convexHull(pts) {
+  pts = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cr = (o, a, b) => (a[0]-o[0]) * (b[1]-o[1]) - (a[1]-o[1]) * (b[0]-o[0]);
+  const lo = [], up = [];
+  for (const p of pts) { while (lo.length >= 2 && cr(lo[lo.length-2], lo[lo.length-1], p) <= 0) lo.pop(); lo.push(p); }
+  for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (up.length >= 2 && cr(up[up.length-2], up[up.length-1], p) <= 0) up.pop(); up.push(p); }
+  up.pop(); lo.pop(); return lo.concat(up);
+}
+const norm = (a) => ((a % 360) + 360) % 360;
+const f1 = (n) => n.toFixed(1);
+const ptsAttr = (arr) => arr.map(p => f1(p[0]) + ',' + f1(p[1])).join(' ');
+
+function visibleLights(m, th) {
+  const P = projector(m, th), a = norm(th), out = [];
+  for (const l of m.lights) {
+    const cols = colorsAt(l, a);
+    if (!cols.length) continue;
+    const [x, y, d] = P(l.p);
+    out.push({ x, y, d, cols, f: l.f, wl: P([l.p[0], l.p[1], 0])[1] });
+  }
+  return out.sort((p, q) => q.d - p.d);
+}
+
+/* ---------- render ---------- */
+const $ = (id) => document.getElementById(id);
+const hullG = $('hullG'), lightG = $('lightG'), reflG = $('reflG'), waterG = $('waterG');
+waterG.innerHTML = `<rect x="0" y="${HY}" width="1000" height="${560-HY}" fill="url(#waterN)"/><rect class="water-dusk" x="0" y="${HY}" width="1000" height="${560-HY}" fill="url(#waterD)"/><line x1="0" x2="1000" y1="${HY}" y2="${HY}" stroke="#16202f" stroke-width="1"/>`;
+
+function render(i, th) {
+  const m = model(i), P = projector(m, th);
+  let h = '';
+  for (const p of m.parts) {
+    if (p.t === 'solid') h += `<polygon points="${ptsAttr(convexHull(p.pts.map(P)))}" fill="#0a0f17" stroke="#0a0f17" stroke-width="1.2" stroke-linejoin="round"/>`;
+    else if (p.t === 'line') { const a = P(p.a), b = P(p.b); h += `<line x1="${f1(a[0])}" y1="${f1(a[1])}" x2="${f1(b[0])}" y2="${f1(b[1])}" stroke="#0a0f17" stroke-width="${p.w}" stroke-linecap="round"/>`; }
+    else if (p.t === 'rope') { const a = P(p.a), b = P(p.b), mx = (a[0]+b[0])/2, my = (a[1]+b[1])/2 + p.sag * m.sz; h += `<path d="M${f1(a[0])},${f1(a[1])} Q${f1(mx)},${f1(my)} ${f1(b[0])},${f1(b[1])}" fill="none" stroke="#0a0f17" stroke-width="1.6"/>`; }
+    else if (p.t === 'flag') h += `<polygon points="${ptsAttr(p.pts.map(P))}" fill="${p.fill}" stroke="#0a0f17" stroke-width="1"/>`;
+  }
+  hullG.innerHTML = h;
+
+  const r = m.lr;
+  let lh = '', rh = '';
+  for (const L of visibleLights(m, th)) {
+    const cls = L.f ? ' class="flash"' : '';
+    const x = f1(L.x), y = f1(L.y);
+    let core;
+    if (L.cols.length === 2) {
+      core = `<path d="M${x},${f1(L.y-r)} A${r},${r} 0 0 0 ${x},${f1(L.y+r)} Z" fill="${COL[L.cols[0]]}"/><path d="M${x},${f1(L.y-r)} A${r},${r} 0 0 1 ${x},${f1(L.y+r)} Z" fill="${COL[L.cols[1]]}"/>`;
+    } else core = `<circle cx="${x}" cy="${y}" r="${r}" fill="${COL[L.cols[0]]}"/>`;
+    const gc = L.cols.length === 2 ? 'w' : L.cols[0];
+    lh += `<g${cls}><circle cx="${x}" cy="${y}" r="${f1(r*3.4)}" fill="url(#glow-${gc})"/>${core}<circle cx="${x}" cy="${y}" r="${f1(r*.42)}" fill="#fff" opacity=".75"/></g>`;
+    const len = Math.max(0, Math.min((L.wl - L.y) * .9, 560 - L.wl));
+    if (len > 2) rh += `<g${cls}><rect x="${f1(L.x - r*.55)}" y="${f1(L.wl + 2)}" width="${f1(r*1.1)}" height="${f1(len)}" fill="url(#refl-${gc})"/></g>`;
+  }
+  lightG.innerHTML = lh;
+  reflG.innerHTML = rh;
+}
+(function glowDefs() {
+  const defs = document.querySelector('#stage defs');
+  let s = '';
+  for (const k in COL) {
+    s += `<radialGradient id="glow-${k}"><stop offset="0" stop-color="${COL[k]}" stop-opacity=".55"/><stop offset=".35" stop-color="${COL[k]}" stop-opacity=".16"/><stop offset="1" stop-color="${COL[k]}" stop-opacity="0"/></radialGradient>`;
+    s += `<linearGradient id="refl-${k}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${COL[k]}" stop-opacity=".32"/><stop offset="1" stop-color="${COL[k]}" stop-opacity="0"/></linearGradient>`;
+  }
+  defs.insertAdjacentHTML('beforeend', s);
+})();
+
+/* ---------- aspect naming + sector diagram ---------- */
+const ASPECT8 = ['edestä','etuoikealta','oikealta','takaoikealta','takaa','takavasemmalta','vasemmalta','etuvasemmalta'];
+const aspectName = (th) => ASPECT8[Math.round(norm(th) / 45) % 8];
+const ASPECT4 = ['Edestä','Oikealta','Takaa','Vasemmalta'];
+const aspect4 = (th) => Math.round(norm(th) / 90) % 4;
+
+function sectorSvg(th, show) {
+  const c = 80, R = 60;
+  const pol = (a, r) => [c + r * Math.sin(a * D2R), c - r * Math.cos(a * D2R)];
+  const arc = (a0, a1, r, col, w, dash) => { const p0 = pol(a0, r), p1 = pol(a1, r), large = (norm(a1 - a0) > 180) ? 1 : 0;
+    return `<path d="M${f1(p0[0])},${f1(p0[1])} A${r},${r} 0 ${large} 1 ${f1(p1[0])},${f1(p1[1])}" fill="none" stroke="${col}" stroke-width="${w}"${dash ? ' stroke-dasharray="3 4"' : ''} stroke-linecap="butt"/>`; };
+  let s = `<circle cx="${c}" cy="${c}" r="${R}" fill="none" stroke="#1e2a3b"/>`;
+  s += arc(247.5, 112.5, R + 9, '#9aa6b8', 1.3, true);
+  s += arc(0, 112.5, R, COL.g, 5) + arc(247.5, 360, R, COL.r, 5) + arc(112.5, 247.5, R, COL.w, 5);
+  s += `<path d="M${c},${c-24} C${c+9},${c-12} ${c+8},${c+10} ${c+6},${c+20} L${c-6},${c+20} C${c-8},${c+10} ${c-9},${c-12} ${c},${c-24} Z" fill="#253247" stroke="#3b4c66"/>`;
+  s += `<text x="${c}" y="${c-30}" text-anchor="middle" fill="#6f7d92" font-size="9" font-family="IBM Plex Mono, monospace">KEULA</text>`;
+  if (show) {
+    const o = pol(th, R + 4), q = pol(th, 26);
+    s += `<line x1="${f1(o[0])}" y1="${f1(o[1])}" x2="${f1(q[0])}" y2="${f1(q[1])}" stroke="#d9a34b" stroke-width="1.2" stroke-dasharray="2 3"/>`;
+    s += `<circle cx="${f1(o[0])}" cy="${f1(o[1])}" r="7" fill="#d9a34b" stroke="#060a11" stroke-width="2"/>`;
+  }
+  return s;
+}
+
+/* ---------- state ---------- */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('kulkuvalot:' + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem('kulkuvalot:' + k, JSON.stringify(v)); } catch {} },
+};
+const st = {
+  view: 'harjoittelu',
+  idx: Math.min(store.get('idx', 0), V.length - 1),
+  th: 90, reveal: false,
+  q: null, qType: store.get('qType', 'type'), oblique: store.get('oblique', false),
+  score: store.get('score', { n:0, ok:0, streak:0, best:0 }),
+};
+const rnd = (n) => Math.floor(Math.random() * n);
+const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+/* ---------- practice view ---------- */
+const stageBox = $('stageBox'), vesselSel = $('vesselSel'), angleIn = $('angleIn'), angleOut = $('angleOut');
+
+function fillSelect() {
+  vesselSel.innerHTML = V.map((v, i) => `<option value="${i}">${i + 1}. ${st.reveal || st.view === 'ohje' ? v.short : 'Harjoitus ' + (i + 1)}</option>`).join('');
+  vesselSel.value = st.idx;
+}
+function infoHtml(v, shown, extra = '') {
+  if (!shown) return `<p class="eyebrow">Tunnista</p><h2>Mikä alus, ja mistä suunnasta?</h2><p class="muted">Katso valoja ja päättele. Paina sitten <b>Näytä alus</b> (välilyönti).</p>${extra}`;
+  return `<p class="eyebrow">${V.indexOf(v) + 1} / ${V.length}${v.nat ? '<span class="chip">Kansallinen</span>' : ''}</p><h2>${v.name}</h2><ul>${v.desc.map(d => `<li>${d}</li>`).join('')}</ul>${v.tip ? `<p class="tip">${v.tip}</p>` : ''}${extra}`;
+}
+function drawPractice() {
+  render(st.idx, st.th);
+  stageBox.classList.toggle('reveal', st.reveal);
+  $('stageTag').textContent = `HARJOITUS ${st.idx + 1} / ${V.length}`;
+  $('stageBearing').textContent = `${String(Math.round(norm(st.th))).padStart(3, '0')}°`;
+  $('stageHint').textContent = '';
+  angleIn.value = Math.round(norm(st.th));
+  angleOut.textContent = `${String(Math.round(norm(st.th))).padStart(3, '0')}° · ${aspectName(st.th)}`;
+  document.querySelectorAll('#aspectSeg button').forEach(b => b.setAttribute('aria-pressed', String(Math.abs(norm(st.th) - +b.dataset.a) < .5)));
+  $('revealBtn').textContent = st.reveal ? 'Piilota alus' : 'Näytä alus';
+  $('infoCard').innerHTML = infoHtml(V[st.idx], st.reveal);
+  $('sector').innerHTML = sectorSvg(st.th, st.reveal);
+}
+function setIdx(i, keepReveal) {
+  st.idx = (i + V.length) % V.length; store.set('idx', st.idx);
+  if (!keepReveal) st.reveal = false;
+  fillSelect(); drawPractice();
+}
+function setReveal(v) { st.reveal = v; fillSelect(); drawPractice(); }
+function setAngle(a) { st.th = norm(a); drawPractice(); }
+
+$('prevBtn').onclick = () => setIdx(st.idx - 1);
+$('nextBtn').onclick = () => setIdx(st.idx + 1);
+$('randBtn').onclick = () => { st.th = rnd(360); setIdx(rnd(V.length)); };
+vesselSel.onchange = () => setIdx(+vesselSel.value, true);
+$('revealBtn').onclick = () => setReveal(!st.reveal);
+angleIn.oninput = () => setAngle(+angleIn.value);
+document.querySelectorAll('#aspectSeg button').forEach(b => b.onclick = () => setAngle(+b.dataset.a));
+
+// drag to rotate (practice only)
+let drag = null;
+stageBox.addEventListener('pointerdown', (e) => {
+  if (st.view !== 'harjoittelu') return;
+  drag = { x: e.clientX, th: st.th, id: e.pointerId }; stageBox.classList.add('drag');
+});
+stageBox.addEventListener('pointermove', (e) => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const dx = e.clientX - drag.x;
+  if (Math.abs(dx) > 3) { try { stageBox.setPointerCapture(drag.id); } catch {} }
+  setAngle(drag.th - dx * 360 / Math.max(stageBox.clientWidth, 300));
+});
+const endDrag = () => { drag = null; stageBox.classList.remove('drag'); };
+stageBox.addEventListener('pointerup', endDrag);
+stageBox.addEventListener('pointercancel', endDrag);
+
+/* ---------- quiz ---------- */
+function signature(i, th) {
+  const L = visibleLights(model(i), th).slice().sort((a, b) => a.y - b.y || a.x - b.x);
+  return L.map(l => l.cols.join('') + (l.f ? '*' : '')).join('|');
+}
+function pickAngle(v) {
+  if (v.angles) { const [a0, a1] = v.angles[rnd(v.angles.length)]; return a0 + rnd(a1 - a0 + 1); }
+  if (st.oblique) return rnd(360);
+  return rnd(4) * 90;
+}
+function newQuestion() {
+  let q;
+  if (st.qType === 'type') {
+    for (let tries = 0; tries < 40; tries++) {
+      const i = rnd(V.length), th = pickAngle(V[i]), sig = signature(i, th);
+      const twins = V.filter((_, j) => j !== i && signature(j, th) === sig).length;
+      q = { i, th, sig };
+      if (!twins) break;
+    }
+    const pool = shuffle(V.map((_, j) => j).filter(j => j !== q.i && signature(j, q.th) !== q.sig));
+    const same = pool.filter(j => V[j].grp === V[q.i].grp), other = pool.filter(j => V[j].grp !== V[q.i].grp);
+    const picks = [...same.slice(0, 2), ...other].slice(0, 3);
+    q.opts = shuffle([q.i, ...picks]).map(j => ({ label: V[j].short, ok: j === q.i }));
+  } else {
+    const movers = V.map((v, j) => j).filter(j => V[j].moving && !V[j].angles);
+    const i = movers[rnd(movers.length)], base = rnd(4) * 90;
+    const th = norm(base + (st.oblique ? rnd(41) - 20 : 0));
+    q = { i, th, opts: ASPECT4.map((label, k) => ({ label, ok: k === aspect4(th) })) };
+  }
+  q.answered = false; st.q = q; drawQuiz();
+}
+function drawQuiz() {
+  const q = st.q, v = V[q.i];
+  render(q.i, q.th);
+  stageBox.classList.toggle('reveal', q.answered);
+  $('stageTag').textContent = `TEHTÄVÄ ${st.score.n + (q.answered ? 0 : 1)}`;
+  $('stageBearing').textContent = q.answered ? `${String(Math.round(norm(q.th))).padStart(3, '0')}°` : '';
+  $('stageHint').textContent = '';
+  $('question').textContent = st.qType === 'type' ? 'Mikä alus?' : `Mistä suunnasta näet aluksen: ${v.short.toLowerCase()}?`;
+  $('answers').innerHTML = q.opts.map((o, k) => {
+    let cls = '';
+    if (q.answered) cls = o.ok ? 'right' : (q.pick === k ? 'wrong' : '');
+    return `<button data-k="${k}" class="${cls}" ${q.answered ? 'disabled' : ''}><kbd>${k + 1}</kbd><span>${o.label}</span></button>`;
+  }).join('');
+  $('answers').querySelectorAll('button').forEach(b => b.onclick = () => answer(+b.dataset.k));
+  const s = st.score;
+  $('score').innerHTML = `<span>Oikein <b>${s.ok} / ${s.n}</b></span><span>Putki <b>${s.streak}</b></span><span>Paras <b>${s.best}</b></span>`;
+  $('nextQ').disabled = !q.answered;
+  let verdict = '';
+  if (q.answered) {
+    const ok = q.opts[q.pick].ok;
+    verdict = `<p class="tip"><span class="verdict ${ok ? 'ok' : 'bad'}">${ok ? 'Oikein.' : 'Väärin.'}</span> Näet aluksen ${aspectName(q.th)} (${Math.round(norm(q.th))}°).</p>`;
+  }
+  $('infoCard').innerHTML = q.answered ? infoHtml(v, true, verdict)
+    : `<p class="eyebrow">Tehtävä</p><h2>${st.qType === 'type' ? 'Tunnista alus valoista' : 'Päättele katselusuunta'}</h2><p class="muted">Valitse vastaus painikkeesta tai numeronäppäimellä 1–4.</p>`;
+  $('sector').innerHTML = sectorSvg(q.th, q.answered);
+}
+function answer(k) {
+  const q = st.q; if (q.answered) return;
+  q.answered = true; q.pick = k;
+  const s = st.score; s.n++;
+  if (q.opts[k].ok) { s.ok++; s.streak++; s.best = Math.max(s.best, s.streak); } else s.streak = 0;
+  store.set('score', s); drawQuiz(); $('nextQ').focus();
+}
+$('nextQ').onclick = newQuestion;
+$('resetScore').onclick = () => { st.score = { n:0, ok:0, streak:0, best:0 }; store.set('score', st.score); drawQuiz(); };
+document.querySelectorAll('#quizSeg button').forEach(b => b.onclick = () => {
+  st.qType = b.dataset.q; store.set('qType', st.qType);
+  document.querySelectorAll('#quizSeg button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  newQuestion();
+});
+$('obliqueIn').checked = st.oblique;
+$('obliqueIn').onchange = (e) => { st.oblique = e.target.checked; store.set('oblique', st.oblique); newQuestion(); };
+document.querySelectorAll('#quizSeg button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.q === st.qType)));
+
+/* ---------- views ---------- */
+function setView(v) {
+  st.view = v;
+  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.view === v)));
+  $('view-main').hidden = v === 'ohje';
+  $('view-ohje').hidden = v !== 'ohje';
+  $('practiceControls').hidden = v !== 'harjoittelu';
+  $('quizControls').hidden = v !== 'tehtavat';
+  stageBox.classList.toggle('can-drag', v === 'harjoittelu');
+  if (v === 'harjoittelu') { fillSelect(); drawPractice(); }
+  if (v === 'tehtavat') { if (!st.q) newQuestion(); else drawQuiz(); }
+  if (location.hash.slice(1) !== v) history.replaceState(null, '', '#' + v);
+}
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => setView(b.dataset.view));
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.closest('select,input[type="range"]') && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (st.view === 'harjoittelu') {
+    if (e.key === 'ArrowRight') { setIdx(st.idx + 1); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft') { setIdx(st.idx - 1); e.preventDefault(); }
+    else if (e.key === ' ' && !e.target.closest('button')) { setReveal(!st.reveal); e.preventDefault(); }
+    else if (e.key === 'a' || e.key === 'A') setAngle(st.th - 15);
+    else if (e.key === 'd' || e.key === 'D') setAngle(st.th + 15);
+    else if (e.key === 'r' || e.key === 'R') $('randBtn').click();
+  } else if (st.view === 'tehtavat') {
+    if (/^[1-4]$/.test(e.key) && st.q && !st.q.answered) answer(+e.key - 1);
+    else if (e.key === 'Enter' && st.q && st.q.answered && !e.target.closest('button')) newQuestion();
+  }
+});
+
+const initial = location.hash.slice(1);
+setView(['harjoittelu','tehtavat','ohje'].includes(initial) ? initial : 'harjoittelu');
+})();
+</script>
