@@ -161,6 +161,17 @@ select{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;
 .sim-chip.ok{color:var(--ok);border-color:#1f6b45;background:rgba(15,42,29,.7)}
 .sim-chip.warn{color:#ffb454;border-color:#7a5418;background:rgba(45,30,10,.75)}
 .sim-banner{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);display:grid;gap:8px;justify-items:center;text-align:center;background:rgba(6,10,17,.9);border:1px solid var(--line2);border-radius:12px;padding:14px 20px;max-width:86%}
+#simMarks{display:none}
+#simBox.reveal #simMarks{display:inline}
+#simBox .sky-dusk,#simBox .water-dusk{transition:opacity .18s ease}
+#simBox.reveal #simLand{fill:#1f2922}
+#simBox.reveal #simTrafSil{fill:#11151c}
+.sim-chip.peek{color:#ffd9a0;border-color:#8a6a35;background:rgba(45,34,15,.8)}
+#simPeek{touch-action:none;user-select:none;-webkit-user-select:none}
+.sim-enc{margin-top:12px;background:var(--panel);border:1px solid var(--brass);border-radius:12px;padding:12px 14px;display:grid;gap:8px;scroll-margin:16px}
+#simBox{touch-action:pan-y;cursor:grab}
+.sim-enc .question{font-size:17px;margin:0}
+.sim-enc .answers button{min-height:40px;padding:8px 10px;font-size:15px}
 .sim-banner b{font:700 22px var(--sans);letter-spacing:.12em}
 .sim-banner.bad b{color:var(--bad)} .sim-banner.good b{color:var(--ok)}
 .sim-panel{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:12px}
@@ -452,22 +463,29 @@ a{color:var(--brass)}
               <radialGradient id="cityGlow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#8a5f34" stop-opacity=".75"/><stop offset=".45" stop-color="#4a3626" stop-opacity=".35"/><stop offset="1" stop-color="#0a1322" stop-opacity="0"/></radialGradient>
             </defs>
             <rect x="0" y="0" width="1000" height="440" fill="url(#skyN)"/>
+            <rect class="sky-dusk" x="0" y="0" width="1000" height="440" fill="url(#skyD)"/>
             <ellipse id="simGlow" cx="500" cy="252" rx="620" ry="190" fill="url(#cityGlow)"/>
             <rect id="simWater" x="0" y="252" width="1000" height="200" fill="url(#waterN)"/>
+            <rect id="simWaterD" class="water-dusk" x="0" y="252" width="1000" height="200" fill="url(#waterD)"/>
             <line id="simHz" x1="0" x2="1000" y1="252" y2="252" stroke="#141d2b"/>
             <g id="simLand" fill="#020409"></g>
+            <g id="simTrafSil" fill="#020409"></g>
+            <g id="simMarks"></g>
             <g id="simRefl"></g>
+            <g id="simTrafRefl"></g>
             <g id="simLights"></g>
+            <g id="simTraf"></g>
             <g id="simBow"><path d="M330,440 C400,400 470,378 500,372 C530,378 600,400 670,440 Z" fill="#05070b" stroke="#161d28"/><path d="M400,440 C440,408 480,392 500,388 C520,392 560,408 600,440" fill="none" stroke="#1d2633" stroke-width="3"/></g>
             <g id="simTape"></g>
           </svg>
           <div class="sim-hud">
             <div class="sim-hdg"><span class="lbl">Suunta</span><b id="simHdg">000°</b></div>
-            <div class="sim-chip ok" id="simFw">Väylällä</div>
+            <div style="display:grid;gap:6px;justify-items:center"><div class="sim-chip ok" id="simFw">Väylällä</div><div class="sim-chip peek" id="simPeekChip" hidden>Kurkistus</div></div>
             <div class="sim-spd"><b id="simSpd">0,0</b><span class="lbl">solmua</span><span class="lbl" id="simTime">0:00</span></div>
           </div>
           <div class="sim-banner" id="simBanner" hidden></div>
         </div>
+        <div class="sim-enc" id="simEnc" hidden></div>
         <div class="sim-panel">
           <div class="sim-ctl">
             <span class="lbl">Peräsin <em id="simRudVal">keskellä</em></span>
@@ -480,15 +498,22 @@ a{color:var(--brass)}
             <div class="row"><button class="btn" id="simU" aria-label="Lisää kaasua">▲</button><button class="btn" id="simD" aria-label="Vähennä kaasua">▼</button></div></div>
           </div>
           <div class="sim-ctl">
+            <span class="lbl">Katse <em id="simLookVal">eteen</em></span>
+            <div class="row"><button class="btn" id="simLookL" aria-label="Katse vasemmalle">◀</button><button class="btn" id="simLookC">Eteen</button><button class="btn" id="simLookR" aria-label="Katse oikealle">▶</button></div>
+            <span class="sector-hint" style="margin:0">Vedä yönäkymää tai käytä Q/E, W eteen.</span>
+          </div>
+          <div class="sim-ctl">
             <span class="lbl">Aikakerroin</span>
             <div class="seg" role="group" aria-label="Aikakerroin" id="simScale"><button data-s="1" aria-pressed="false">1×</button><button data-s="5" aria-pressed="true">5×</button><button data-s="10" aria-pressed="false">10×</button></div>
-            <div class="row"><button class="btn" id="simPause">Tauko</button><button class="btn" id="simReset">Aloita alusta</button></div>
+            <div class="row"><button class="btn" id="simPeek" title="Pidä pohjassa (välilyönti)">Kurkista</button><button class="btn" id="simPause">Tauko</button><button class="btn" id="simReset">Aloita alusta</button></div>
           </div>
         </div>
         <div class="row" style="margin-top:10px;gap:18px">
           <label class="check"><input type="checkbox" id="simChartIn" checked> Näytä kartta</label>
           <label class="check"><input type="checkbox" id="simNames"> Näytä valojen nimet</label>
-          <span class="muted" style="font-size:13px">Näppäimet: ← → peräsin, ↑ ↓ kaasu, C peräsin keskelle, P tauko</span>
+          <label class="check"><input type="checkbox" id="simEncIn" checked> Kysy lähestymistilanteissa</label>
+          <label class="check"><input type="checkbox" id="simAisIn" checked> Liikenne kartalla (AIS)</label>
+          <span class="muted" style="font-size:13px">Näppäimet: ← → peräsin, ↑ ↓ kaasu, C peräsin keskelle, Q/E katse, W katse eteen, välilyönti pohjassa kurkistus, P tauko</span>
         </div>
         <div class="card" style="margin-top:12px"><label class="row" for="simMission" style="gap:10px"><span class="eyebrow" style="margin:0">Reitti</span><select id="simMission"></select></label><div id="simInfo" style="margin-top:12px"></div></div>
       </section>
@@ -1794,6 +1819,8 @@ const SIM = (() => {
   const KN = .5144;
   const elev = (h, d) => Math.atan((h - EYE - d * d / (2 * 6371000) * .87) / d) / D2R;
   const dip = .0293 * Math.sqrt(EYE);
+  // pehmeä pystyasteikko: pienet kulmat korostettu, suuret puristettu, jotta lähellä oleva laiva mahtuu kuvaan
+  const VY = (ang) => 150 * Math.tanh(ang * KVp / 150);
 
   // --- geometria: maan reunat ja niiden rajaavat laatikot ---
   const shapes = [...KOIRA.land.map(r => ({ r, closed:true })), ...KOIRA.shore.map(r => ({ r, closed:false }))].map(s => {
@@ -1866,12 +1893,14 @@ const SIM = (() => {
   const LL = (lat, lon) => ({ x:(lon - LON0) * KX, y:(lat - LAT0) * 110540 });
   const cp = (lat, lon, r, name, hint) => ({ ...LL(lat, lon), r, name, hint });
   const MISSIONS = [
-    { id:'lintu', name:'Lintupaaden väylää Länsisatamaan', start:{ x:-1287, y:-2640, hdg:358 }, cps:[
+    { id:'lintu', name:'Lintupaaden väylää Länsisatamaan', start:{ x:-1287, y:-2640, hdg:358 },
+      events:[{ cp:1, id:'tow', dist:130, dir:1 }, { cp:2, id:'ferry', dist:0, dir:1, hold:300 }], cps:[
       { x:-1315, y:-1477, r:170, name:'Lintupaaden väylän mutka', hint:'Aja pohjoiseen Lintupaaden väylää. Läntinen kardinaalimerkki Lintupaasi 1 jää oikealle. Käänny, kun Koirakarin valo muuttuu valkoiseksi (suuntima 035,5°–049°).' },
       { x:-300, y:-340, r:170, name:'Koirakarin edusta', hint:'Aja Koirakaria kohti valkoisessa sektorissa. Punainen tarkoittaa, että olet ajautunut vasemmalle, ja vihreä, että olet ajautunut oikealle. Itäinen Lintupaasi 3 jää vasemmalle.' },
       { x:-268, y:1700, r:190, name:'Länsisatama', hint:'Käänny pohjoiseen Länsisataman väylälle. Pidä punaiset M 1 ja M 3 vasemmalla ja vihreä M 2 oikealla.' },
     ] },
-    { id:'kustaa', name:'Husunkivestä Kustaanmiekkaan', start:{ ...LL(60.14212, 24.94900), hdg:76 }, cps:[
+    { id:'kustaa', name:'Husunkivestä Kustaanmiekkaan', start:{ ...LL(60.14212, 24.94900), hdg:76 },
+      events:[{ cp:-1, id:'pilot', dist:0, dir:1, hold:40 }, { cp:3, id:'kustaa', dist:800, dir:1 }], cps:[
       cp(60.13957, 24.97113, 150, 'Husunkiven itäpuoli', 'Aja Husunkiven väylää itään. Husunkiven tutkamerkki (punainen VQ (5) 6 s) jää oikealle eli etelän puolelle. Edessä näkyy Remmarholmin loisto (Q (2) 4 s).'),
       cp(60.13668, 24.98021, 140, 'Särkän väylä', 'Käänny kaakkoon kohti Remmarholmia. Pysy sen valkoisessa sektorissa (suuntima 121°–141°). Punainen on väylän vasemmalla ja vihreä oikealla puolella.'),
       cp(60.13073, 24.98835, 140, 'Remmarholmin edusta', 'Hidasta. Kustaanmiekan loisto (Q) näkyy vasemmalla. Käänny pohjoiseen, kun sen valo on valkoinen.'),
@@ -1879,7 +1908,8 @@ const SIM = (() => {
       cp(60.14080, 24.99308, 110, 'Kustaanmiekka', 'Olet salmessa. Pysy keskellä ja jatka koilliseen Kruunuvuorenselälle.'),
       cp(60.14760, 24.99920, 170, 'Kruunuvuorenselkä', 'Aja salmi läpi selälle.'),
     ] },
-    { id:'pihla', name:'Pihlajasaaren kierto', start:{ ...LL(60.12900, 24.90520), hdg:0 }, cps:[
+    { id:'pihla', name:'Pihlajasaaren kierto', start:{ ...LL(60.12900, 24.90520), hdg:0 },
+      events:[{ cp:-1, id:'ferry', dist:0, dir:1, hold:70 }, { cp:4, id:'tri', dist:250, dir:1 }], cps:[
       cp(60.13950, 24.90540, 150, 'Pihlajasaaren länsipuoli', 'Aja pohjoiseen Länsisataman väylää. Punaiset M 1 ja M 3 jäävät vasemmalle ja vihreä M 2 oikealle. Pihlajasaaret ovat oikealla pimeänä siluettina.'),
       { x:-240, y:2100, r:140, name:'Länsisataman edusta', hint:'Jatka pohjoiseen, kunnes Pihlajasaaret jäävät kokonaan oikealle. Käänny sitten itään Länsisataman edustalle.' },
       { x:650, y:2090, r:140, name:'Saukonnokan edusta', hint:'Aja itään saarten pohjoispuolitse. Pihlajasaaret ovat oikealla, ja satama-alue ja laiturit ovat vasemmalla.' },
@@ -1892,11 +1922,12 @@ const SIM = (() => {
   ];
   let MISSION = MISSIONS[Math.max(0, MISSIONS.findIndex(m => m.id === store.get('simMission', 'lintu')))];
   const s = { zoom:'mid', x:0, y:0, hdg:0, v:0, rud:0, thr:0, rot:0, t:0, outT:0, groundings:0, cp:0, track:[], paused:false, aground:false, done:false,
-              scale:5, names:false, chart:true, last:performance.now(), t0:performance.now(), lastCast:null, cols:[], vis:[], built:false, keys:{} };
+              scale:5, look:0, peek:false, peeks:0, names:false, chart:true, enc:null, askEnc:true, ais:true, idOk:0, idN:0, decOk:0, decN:0, collisions:0, last:performance.now(), t0:performance.now(), lastCast:null, cols:[], vis:[], built:false, keys:{} };
 
   function reset() {
     Object.assign(s, { x:MISSION.start.x, y:MISSION.start.y, hdg:MISSION.start.hdg, v:0, rud:0, thr:.6, rot:0, t:0, outT:0, groundings:0, cp:0,
-      track:[[MISSION.start.x, MISSION.start.y]], aground:false, done:false, paused:false, lastCast:null });
+      track:[[MISSION.start.x, MISSION.start.y]], aground:false, done:false, paused:false, lastCast:null, look:0, peek:false, peeks:0, enc:null, idOk:0, idN:0, decOk:0, decN:0, collisions:0 });
+    trafficReset(); $('simEnc').hidden = true;
     s.v = s.thr * 7 * KN;
     $('simCps').innerHTML = cpsSvg();
     banner('');
@@ -1906,6 +1937,7 @@ const SIM = (() => {
   // --- fysiikka ---
   function step(dt) {
     if (s.aground || s.done || s.paused) return;
+    trafficStep(dt);
     const vt = (s.thr >= 0 ? s.thr * 7 : s.thr * 7) * KN;
     s.v += (vt - s.v) * Math.min(1, dt / 4);
     const rotT = .05 * s.rud * s.v;                              // °/s
@@ -1918,20 +1950,23 @@ const SIM = (() => {
       return;
     }
     s.x = nx; s.y = ny; s.t += dt;
+    checkCollision(); if (s.aground) return;
+    checkEncounters();
     if (!fairwayAt(s.x, s.y)) s.outT += dt;
     const lt = s.track[s.track.length - 1];
     if (Math.hypot(s.x - lt[0], s.y - lt[1]) > 12) s.track.push([s.x, s.y]);
     const cp = MISSION.cps[s.cp];
     if (cp && Math.hypot(s.x - cp.x, s.y - cp.y) < cp.r) {
       s.cp++;
+      runEvents(s.cp);
       if (s.cp >= MISSION.cps.length) finish();
       else { flash(`Tarkastuspiste: ${cp.name}`); info(); }
     }
   }
   function backOff() {
-    // palautetaan 40 m taaksepäin reittiä pitkin, vene pysähtyy
+    // palautetaan 80 m taaksepäin reittiä pitkin, vene pysähtyy
     let back = 0, i = s.track.length - 1;
-    while (i > 0 && back < 40) { back += Math.hypot(s.track[i][0] - s.track[i - 1][0], s.track[i][1] - s.track[i - 1][1]); i--; }
+    while (i > 0 && back < 80) { back += Math.hypot(s.track[i][0] - s.track[i - 1][0], s.track[i][1] - s.track[i - 1][1]); i--; }
     const p = s.track[Math.max(0, i)];
     s.x = p[0]; s.y = p[1]; s.track.length = Math.max(1, i + 1);
     s.aground = false; s.v = 0; s.thr = 0; s.rud = 0; s.rot = 0; banner('');
@@ -1939,10 +1974,11 @@ const SIM = (() => {
   }
   function finish() {
     s.done = true; s.thr = 0;
-    const res = { t:s.t, out:s.outT, g:s.groundings, d:Date.now() };
+    const res = { t:s.t, out:s.outT, g:s.groundings, p:s.peeks, d:Date.now() };
     const best = store.get('simBest-' + MISSION.id, null);
     if (!best || score(res) > score(best)) store.set('simBest-' + MISSION.id, res);
-    banner('MAALISSA', `Aika ${mmss(s.t)} · väylän ulkopuolella ${mmss(s.outT)} · karilleajoja ${s.groundings}`, false, true);
+    if (!s.peeks) { const bc = store.get('simClean-' + MISSION.id, null); if (!bc || score(res) > score(bc)) store.set('simClean-' + MISSION.id, res); }
+    banner('MAALISSA', `Aika ${mmss(s.t)} · väylän ulkopuolella ${mmss(s.outT)} · karilleajoja ${s.groundings} · törmäyksiä ${s.collisions} · kurkistuksia ${s.peeks}${s.idN ? ` · tunnistukset ${s.idOk}/${s.idN} · väistöratkaisut ${s.decOk}/${s.decN}` : ''}`, false, true);
     info();
   }
   const score = (r) => 1000 - r.t / 6 - r.out * 2 - r.g * 150;
@@ -1951,10 +1987,11 @@ const SIM = (() => {
   // --- yönäkymä ---
   function castView(force) {
     const lc = s.lastCast;
-    if (!force && lc && Math.hypot(s.x - lc.x, s.y - lc.y) < 4 && Math.abs(n180(s.hdg - lc.h)) < .4) return;
-    s.lastCast = { x:s.x, y:s.y, h:s.hdg };
+    const cam = norm(s.hdg + s.look);
+    if (!force && lc && Math.hypot(s.x - lc.x, s.y - lc.y) < 4 && Math.abs(n180(cam - lc.h)) < .4) return;
+    s.lastCast = { x:s.x, y:s.y, h:cam };
     // maa: sarakkeittain siluetti
-    const hy = HY + dip * KVp;
+    const hy = HY + VY(dip);
     // yhtenäiset siluetit: vierekkäiset osumat yhdeksi monikulmioksi
     let land = '', run = [];
     const flush = () => {
@@ -1962,19 +1999,19 @@ const SIM = (() => {
       run = [];
     };
     for (let i = 0; i <= NCOL; i++) {
-      const x = i / NCOL * W, b = s.hdg + (i / NCOL - .5) * FOV, t = ray(s.x, s.y, b, 5000);
+      const x = i / NCOL * W, b = cam + (i / NCOL - .5) * FOV, t = ray(s.x, s.y, b, 5000);
       if (t >= 5000) { flush(); continue; }
       const prev = run[run.length - 1];
       if (prev && Math.abs(prev[3] - t) > Math.max(120, t * .25)) { run.push([x, prev[1], prev[2], prev[3]]); flush(); }
       // puusto 8–14 m, vaihtelee hieman paikan mukaan
       const hh = 8 + 6 * (.5 + .5 * Math.sin((s.x + Math.sin(b * D2R) * t) * .013) * Math.cos((s.y + Math.cos(b * D2R) * t) * .011));
-      run.push([x, Math.max(0, HY - elev(hh, t) * KVp), Math.min(H, HY - elev(0, t) * KVp), t]);
+      run.push([x, Math.max(0, HY - VY(elev(hh, t))), Math.min(H, HY - VY(elev(0, t))), t]);
     }
     flush();
     $('simLand').innerHTML = land;
-    $('simWater').setAttribute('y', f1(hy)); $('simHz').setAttribute('y1', f1(hy)); $('simHz').setAttribute('y2', f1(hy));
+    $('simWater').setAttribute('y', f1(hy)); $('simWaterD').setAttribute('y', f1(hy)); $('simHz').setAttribute('y1', f1(hy)); $('simHz').setAttribute('y2', f1(hy));
     // kaupungin valokajo (Helsingin keskusta)
-    const gb = n180(brg(s.x, s.y, 2200, 5100) - s.hdg), gx = 500 + gb / (FOV / 2) * 500;
+    const gb = n180(brg(s.x, s.y, 2200, 5100) - cam), gx = 500 + gb / (FOV / 2) * 500;
     $('simGlow').setAttribute('cx', f1(gx));
     // valot
     s.vis = [];
@@ -1982,19 +2019,33 @@ const SIM = (() => {
       const dx = L.p[0] - s.x, dy = L.p[1] - s.y, d = Math.hypot(dx, dy);
       const range = /Sektori|Linja/.test(L.type) ? 9000 : 4000;
       if (d < 15 || d > range) continue;
-      const b = norm(Math.atan2(dx, dy) / D2R), rel = n180(b - s.hdg);
+      const b = norm(Math.atan2(dx, dy) / D2R), rel = n180(b - cam);
       if (Math.abs(rel) > FOV / 2 + 2) continue;
       const sc = kSector(L, b);
       if (!sc) continue;
       if (ray(s.x, s.y, b, d) < d - 250) continue;              // toinen saari peittää (loiston oma luoto ei)
-      const x = 500 + rel / (FOV / 2) * 500, y = Math.max(6, HY - elev(L.h, d) * KVp), wy = Math.min(H - 4, HY - elev(0, d) * KVp);
+      const x = 500 + rel / (FOV / 2) * 500, y = Math.max(6, HY - VY(elev(L.h, d))), wy = Math.min(H - 4, HY - VY(elev(0, d)));
       const r = Math.max(2.2, Math.min(10, 7.5 * Math.sqrt(700 / d)));
       s.vis.push({ L, d, b, x, y, wy, r, sc });
     }
     s.vis.sort((a, b) => b.d - a.d);
+    // viittojen, poijujen ja loistojen hahmot hämäränäkymää varten
+    let mk = '';
+    const marks = [];
+    for (const L of KL) {
+      const dx = L.p[0] - s.x, dy = L.p[1] - s.y, d = Math.hypot(dx, dy);
+      if (d < 20 || d > 3500) continue;
+      const b = norm(Math.atan2(dx, dy) / D2R), rel = n180(b - cam);
+      if (Math.abs(rel) > FOV / 2 + 3) continue;
+      if (ray(s.x, s.y, b, d) < d - 250) continue;
+      marks.push({ L, d, x: 500 + rel / (FOV / 2) * 500, top: HY - VY(elev(L.h + 1.6, d)), bot: HY - VY(elev(0, d)) });
+    }
+    marks.sort((a, b) => b.d - a.d);
+    for (const m of marks) mk += markSprite(m);
+    $('simMarks').innerHTML = mk;
     const placed = [];
     const prio = (v) => /Sektori/.test(v.L.type) ? 0 : 1;
-    if (s.names) for (const v of s.vis.slice().sort((a, b) => prio(a) - prio(b) || a.d - b.d)) {
+    if (s.names || s.peek) for (const v of s.vis.slice().sort((a, b) => prio(a) - prio(b) || a.d - b.d)) {
       v.txt = `${v.L.name} · ${v.L.chf}`; const w = v.txt.length * 6.2 + 14;
       if (placed.some(p => Math.abs(p.x - v.x) < (p.w + w) / 2)) continue;
       placed.push({ x:v.x, w }); v.label = true;
@@ -2021,18 +2072,61 @@ const SIM = (() => {
   function drawTape() {
     let g = '';
     for (let a = -40; a <= 40; a += 5) {
-      const brgA = Math.round((s.hdg + a) / 5) * 5, rel = n180(brgA - s.hdg), x = 500 + rel / (FOV / 2) * 500;
+      const cam = norm(s.hdg + s.look), brgA = Math.round((cam + a) / 5) * 5, rel = n180(brgA - cam), x = 500 + rel / (FOV / 2) * 500;
       if (Math.abs(rel) > FOV / 2) continue;
       const major = brgA % 30 === 0;
       g += `<line x1="${f1(x)}" x2="${f1(x)}" y1="0" y2="${major ? 12 : 6}" stroke="#8392a8" stroke-width="1"/>`;
       if (major) { const n = norm(brgA); g += `<text x="${f1(x)}" y="26" class="tape-lbl" text-anchor="middle">${({ 0:'N', 90:'E', 180:'S', 270:'W' })[n] ?? String(n).padStart(3, '0')}</text>`; }
     }
-    $('simTape').innerHTML = g + `<path d="M494,0 L506,0 500,9Z" fill="#d9a34b"/>`;
+    // keulan suunta nauhassa (kolmio), katse keskellä
+    const bx = 500 - s.look / (FOV / 2) * 500;
+    g += Math.abs(s.look) < FOV / 2 ? `<path d="M${f1(bx - 6)},0 L${f1(bx + 6)},0 ${f1(bx)},9Z" fill="#d9a34b"/>` : `<text x="${s.look > 0 ? 8 : 992}" y="12" class="tape-lbl" text-anchor="${s.look > 0 ? 'start' : 'end'}" fill="#d9a34b">${s.look > 0 ? '◀ keula' : 'keula ▶'}</text>`;
+    $('simTape').innerHTML = g;
+    const bow = $('simBow'); bow.setAttribute('transform', `translate(${f1(-s.look / (FOV / 2) * 500)},0)`); bow.style.display = Math.abs(s.look) > 55 ? 'none' : '';
+  }
+
+  // hämäränäkymän merkkihahmo: runko, värit ja huippumerkki
+  function markSprite(m) {
+    const L = m.L, h = Math.max(4, m.bot - m.top), x = m.x, w = Math.max(2.4, h * .3), t = m.top, b = m.bot;
+    const lbl = `<text x="${f1(x)}" y="${f1(Math.min(H - 4, b + 14))}" class="kn-lbl" text-anchor="middle">${L.name}</text>`;
+    if (L.type === 'Sektoriloisto' || L.type === 'Tutkamerkki') {
+      const tw = Math.max(2.4, h * .22), col = L.type === 'Tutkamerkki' ? K.red : K.white;
+      return `<polygon points="${f1(x - tw)},${f1(b)} ${f1(x + tw)},${f1(b)} ${f1(x + tw * .7)},${f1(t + h * .12)} ${f1(x - tw * .7)},${f1(t + h * .12)}" fill="${col}"/><rect x="${f1(x - tw * .6)}" y="${f1(t)}" width="${f1(tw * 1.2)}" height="${f1(h * .12)}" fill="#2a2f38"/>` + lbl;
+    }
+    if (L.type === 'Linjamerkki') {
+      const bw = Math.max(3, h * .35);
+      return `<line x1="${f1(x)}" y1="${f1(b)}" x2="${f1(x)}" y2="${f1(t)}" stroke="#3a3f48" stroke-width="${f1(Math.max(1, h * .04))}"/><rect x="${f1(x - bw / 2)}" y="${f1(t)}" width="${f1(bw)}" height="${f1(h * .45)}" fill="#f2b233"/><rect x="${f1(x - bw * .12)}" y="${f1(t)}" width="${f1(bw * .24)}" height="${f1(h * .45)}" fill="${K.black}"/>` + lbl;
+    }
+    const card = CARD[L.nav], bodyT = t + h * .38;
+    let g = '';
+    const cols = card ? card.bands : [L.nav === 1 ? K.red : L.nav === 2 ? K.green : K.yellow];
+    const bh = (b - bodyT) / cols.length;
+    cols.forEach((c, i) => g += `<rect x="${f1(x - w / 2)}" y="${f1(bodyT + i * bh)}" width="${f1(w)}" height="${f1(bh + .4)}" fill="${c}"/>`);
+    g += `<line x1="${f1(x)}" y1="${f1(bodyT)}" x2="${f1(x)}" y2="${f1(t)}" stroke="#2a2f38" stroke-width="${f1(Math.max(.8, w * .12))}"/>`;
+    const cw = w * .55, ch = h * .09, up = (y, c) => `<polygon points="${f1(x - cw)},${f1(y + ch)} ${f1(x + cw)},${f1(y + ch)} ${f1(x)},${f1(y - ch)}" fill="${c}"/>`, dn = (y, c) => `<polygon points="${f1(x - cw)},${f1(y - ch)} ${f1(x + cw)},${f1(y - ch)} ${f1(x)},${f1(y + ch)}" fill="${c}"/>`;
+    const y1 = t + h * .1, y2 = t + h * .28;
+    if (card) g += { nn: up(y1, K.black) + up(y2, K.black), ss: dn(y1, K.black) + dn(y2, K.black), ee: up(y1, K.black) + dn(y2, K.black), ww: dn(y1, K.black) + up(y2, K.black) }[card.top];
+    else if (L.nav === 1) g += `<rect x="${f1(x - cw * .8)}" y="${f1(y1 - ch)}" width="${f1(cw * 1.6)}" height="${f1(ch * 2.4)}" fill="${K.red}"/>`;
+    else if (L.nav === 2) g += up(y1 + ch * .4, K.green);
+    return g + lbl;
+  }
+
+  // --- kurkistus: hetkellinen hämäränäkymä ---
+  function peekAllowed() { return !(s.enc && s.enc.step < 3); }
+  function setPeek(on) {
+    if (on && !peekAllowed()) { flash('Kurkista vasta, kun olet vastannut kysymykseen.', 'EI VIELÄ'); return; }
+    if (on === s.peek) return;
+    s.peek = on;
+    if (on) s.peeks++;
+    $('simBox').classList.toggle('reveal', on);
+    $('simPeekChip').hidden = !on;
+    castView(true); info();
   }
 
   // --- HUD, kartta, info ---
   function hud() {
     $('simHdg').textContent = String(Math.round(s.hdg) % 360).padStart(3, '0') + '°';
+    $('simLookVal').textContent = Math.abs(s.look) < 1 ? 'eteen' : `${String(Math.round(norm(s.hdg + s.look))).padStart(3, '0')}° · ${Math.abs(Math.round(s.look))}° ${s.look > 0 ? 'oikealle' : 'vasemmalle'}`;
     $('simSpd').textContent = (s.v / KN).toFixed(1).replace('.', ',');
     $('simTime').textContent = mmss(s.t);
     const fw = fairwayAt(s.x, s.y);
@@ -2077,7 +2171,10 @@ const SIM = (() => {
     const cp = MISSION.cps[s.cp], best = store.get('simBest-' + MISSION.id, null);
     $('simInfo').innerHTML = `<p class="eyebrow">Tehtävä · ${MISSION.name}</p>
       <ol class="sim-steps">${MISSION.cps.map((c, i) => `<li class="${i < s.cp ? 'done' : i === s.cp ? 'cur' : ''}"><b>${c.name}</b>${i === s.cp && !s.done ? `<span>${c.hint}</span>` : ''}</li>`).join('')}</ol>
+      ${s.idN ? `<p class="sector-hint">Lähestymistilanteet: tunnistit ${s.idOk}/${s.idN} alusta, väistöratkaisuja oikein ${s.decOk}/${s.decN}${s.collisions ? `, yhteentörmäyksiä ${s.collisions}` : ''}.</p>` : ''}
       ${s.done ? `<p class="tip"><span class="verdict ok">Maalissa.</span> Aika ${mmss(s.t)}, väylän ulkopuolella ${mmss(s.outT)}, karilleajoja ${s.groundings}.</p>` : ''}
+      <p class="sector-hint">Kurkistuksia tällä ajolla: ${s.peeks}${s.peeks ? '' : '. Ajat pelkkien valojen varassa'}.</p>
+      ${(() => { const bc = store.get('simClean-' + MISSION.id, null); return bc ? `<p class="sector-hint">Paras ilman kurkistuksia: aika ${mmss(bc.t)}, väylän ulkopuolella ${mmss(bc.out)}, karilleajoja ${bc.g}</p>` : ''; })()}
       ${best ? `<p class="sector-hint">Paras suoritus: aika ${mmss(best.t)}, väylän ulkopuolella ${mmss(best.out)}, karilleajoja ${best.g}</p>` : ''}`;
   }
   let bannerTimer = 0;
@@ -2089,8 +2186,8 @@ const SIM = (() => {
     if (aground) $('simBack').onclick = backOff;
     if (done) $('simAgain').onclick = reset;
   }
-  function flash(text) {
-    const b = $('simBanner'); banner('✓', text); clearTimeout(bannerTimer);
+  function flash(text, title = '✓') {
+    const b = $('simBanner'); banner(title, text); clearTimeout(bannerTimer);
     bannerTimer = setTimeout(() => { if (!s.aground && !s.done) b.hidden = true; }, 2600);
   }
 
@@ -2103,11 +2200,24 @@ const SIM = (() => {
     down: () => { s.thr = clamp(Math.round((s.thr - .1) * 10) / 10, -.3, 1); },
     center: () => { s.rud = 0; },
   };
+  function setLook(v) { s.look = Math.max(-180, Math.min(180, v)); castView(true); drawTape(); hud(); }
+  function lookAt(T) { setLook(n180(brg(s.x, s.y, T.x, T.y) - s.hdg)); }
   function key(e) {
     if (st.view !== 'sim' || e.metaKey || e.ctrlKey || e.altKey || e.target.closest('input,select')) return false;
+    if (s.enc && e.key === ' ') { if (!e.repeat) setPeek(true); e.preventDefault(); return true; }
+    if (s.enc && /^[qQeEwW]$/.test(e.key)) { setLook(s.look + ({ q:-10, e:10 })[e.key.toLowerCase()] || (e.key.toLowerCase() === 'w' ? -s.look : 0)); e.preventDefault(); return true; }
+    if (s.enc) {
+      if (/^[1-4]$/.test(e.key) && s.enc.step < 3) { encAnswer(+e.key - 1); e.preventDefault(); return true; }
+      if (e.key === 'Enter' && s.enc.step === 3) { encDone(); e.preventDefault(); return true; }
+      return false;
+    }
     const m = { ArrowLeft:'left', ArrowRight:'right', ArrowUp:'up', ArrowDown:'down', c:'center', C:'center', '0':'center' }[e.key];
     if (m) { act[m](); hud(); e.preventDefault(); return true; }
-    if (e.key === 'p' || e.key === 'P' || (e.key === ' ' && !e.target.closest('button'))) { s.paused = !s.paused; hud(); e.preventDefault(); return true; }
+    if (e.key === 'q' || e.key === 'Q') { setLook(s.look - 10); e.preventDefault(); return true; }
+    if (e.key === 'e' || e.key === 'E') { setLook(s.look + 10); e.preventDefault(); return true; }
+    if (e.key === 'w' || e.key === 'W') { setLook(0); e.preventDefault(); return true; }
+    if (e.key === ' ') { if (!e.repeat) setPeek(true); e.preventDefault(); return true; }
+    if (e.key === 'p' || e.key === 'P') { if (s.enc) return false; s.paused = !s.paused; hud(); e.preventDefault(); return true; }
     return false;
   }
   function bindHold(el, fn) {
@@ -2117,6 +2227,217 @@ const SIM = (() => {
     ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => el.addEventListener(t, stop));
   }
 
+  // --- muu liikenne ---
+  const vIdx = (id) => V.findIndex(v => v.id === id);
+  const TDEF = [
+    { id:'ferry', name:'Matkustaja-alus', type:'kone-yli50', sc:1.8, kn:9, deck:true, big:true, narrow:true, pp:true, t0:.15,
+      path:[[60.14107,24.90542],[60.13997,24.90540],[60.12666,24.90518],[60.12494,24.90515],[60.11874,24.90506],[60.11648,24.90502],[60.11199,24.90495],[60.11076,24.90439],[60.08965,24.89501]] },
+    { id:'tow', name:'Hinaus', type:'hinaus-alle200', sc:1, kn:5, pp:true, t0:.35,
+      path:[[60.13232,24.92796],[60.12769,24.91822],[60.12663,24.91600],[60.12582,24.91080],[60.12494,24.90516],[60.12284,24.89173],[60.12237,24.88868],[60.11885,24.88232],[60.10989,24.86614]] },
+    { id:'sail', name:'Purjevene', type:'purje', sc:1, kn:5, pp:true, t0:.1,
+      path:[[60.12090,24.90509],[60.11046,24.88653],[60.10671,24.88675],[60.09703,24.88730]] },
+    { id:'trawl', name:'Troolari', type:'trooli', sc:1, kn:3, loop:true, t0:0,
+      path:[[60.1000,24.9150],[60.1060,24.9300],[60.0985,24.9420],[60.0950,24.9250]] },
+    { id:'kustaa', name:'Konealus', type:'kone-alle50', sc:1, kn:8, pp:true, t0:.55,
+      path:[[60.15015,25.00020],[60.14819,24.99964],[60.14080,24.99308],[60.13458,24.99069],[60.13073,24.98835],[60.12991,24.98786],[60.11954,24.98432]] },
+    { id:'pilot', name:'Luotsivene', type:'luotsi', sc:1, kn:10, pp:true, t0:.3,
+      path:[[60.14166,24.94631],[60.14271,24.95264],[60.13957,24.97113],[60.13832,24.97854],[60.13668,24.98021],[60.13061,24.98828],[60.12022,24.98455]] },
+    { id:'tri', name:'Purjevene', type:'purje-3v', sc:1, kn:4.5, pp:true, t0:.6,
+      path:[[60.13096,24.94380],[60.14087,24.92897],[60.14159,24.92777]] },
+  ];
+  const traffic = TDEF.map(def => {
+    const pts = def.path.map(([lat, lon]) => { const p = LL(lat, lon); return [p.x, p.y]; });
+    if (def.loop) pts.push(pts[0]);
+    const cum = [0];
+    for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+    const vi = vIdx(def.type);
+    return { def, pts, cum, total: cum[cum.length - 1], vi, dist: 0, dir: 1, x: 0, y: 0, hdg: 0, quiz: false, m: null };
+  });
+  function pathAt(T, d) {
+    d = Math.max(0, Math.min(T.total, d));
+    let i = 1; while (i < T.cum.length - 1 && T.cum[i] < d) i++;
+    const a = T.pts[i - 1], b = T.pts[i], u = (d - T.cum[i - 1]) / ((T.cum[i] - T.cum[i - 1]) || 1);
+    return [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u];
+  }
+  function trafficPlace(T) {
+    const p = pathAt(T, T.dist), q = pathAt(T, T.dist + T.dir * 70);
+    T.x = p[0]; T.y = p[1];
+    if (Math.hypot(q[0] - p[0], q[1] - p[1]) > 1) T.hdg = brg(p[0], p[1], q[0], q[1]);
+  }
+  function trafficReset() {
+    for (const T of traffic) { T.dist = T.def.t0 * T.total; T.dir = 1; T.hold = 0; T.quiz = false; T.m = model(T.vi); trafficPlace(T); }
+    runEvents(-1);
+  }
+  // käsikirjoitetut kohtaamiset: alus asetetaan reitilleen, kun tarkastuspiste saavutetaan
+  function runEvents(cpN) {
+    for (const ev of (MISSION.events || []).filter(e => e.cp === cpN)) {
+      const T = traffic.find(t => t.def.id === ev.id); if (!T) continue;
+      T.dist = ev.dist; T.dir = ev.dir; T.hold = ev.hold || 0; T.quiz = false; trafficPlace(T);
+    }
+  }
+  function trafficStep(dt) {
+    for (const T of traffic) {
+      if (T.hold > 0) { T.hold -= dt; continue; }
+      T.dist += T.dir * T.def.kn * KN * dt;
+      if (T.def.loop) { if (T.dist >= T.total) T.dist -= T.total; }
+      else if (T.dist >= T.total) { T.dist = T.total; T.dir = -1; }
+      else if (T.dist <= 0) { T.dist = 0; T.dir = 1; }
+      trafficPlace(T);
+    }
+  }
+  // aluksen oma piste maailmaan: x eteen, y oikealle, z ylös
+  function toWorld(T, p) {
+    const m = T.m, sc = T.def.sc, lx = (p[0] - m.cx) * sc, ly = (p[1] - m.cy) * sc, h = T.hdg * D2R;
+    return [T.x + lx * Math.sin(h) + ly * Math.cos(h), T.y + lx * Math.cos(h) - ly * Math.sin(h), p[2] * sc];
+  }
+  function proj(wx, wy, z) {
+    const d = Math.max(5, Math.hypot(wx - s.x, wy - s.y)), b = brg(s.x, s.y, wx, wy), rel = n180(b - norm(s.hdg + s.look));
+    return [500 + rel / (FOV / 2) * 500, HY - VY(elev(z, d)), d, rel];
+  }
+  const DECK = '#ffd9a0';
+  function drawTraffic() {
+    let sil = '', lamps = '', refl = '';
+    for (const T of traffic) {
+      const d = Math.hypot(T.x - s.x, T.y - s.y);
+      if (d > 7000) continue;
+      const b = brg(s.x, s.y, T.x, T.y), rel = n180(b - norm(s.hdg + s.look));
+      if (Math.abs(rel) > FOV / 2 + 12) continue;
+      if (ray(s.x, s.y, b, d) < d - 40) continue;                // saari välissä
+      const a = norm(brg(T.x, T.y, s.x, s.y) - T.hdg);           // katsojan paikka aluksen keulasta
+      // siluetti
+      for (const p of T.m.parts) {
+        if (p.t === 'solid') {
+          const pts = p.pts.map(q => { const w = toWorld(T, q); const r = proj(w[0], w[1], w[2]); return [r[0], r[1]]; });
+          sil += `<polygon points="${convexHull(pts).map(q => f1(q[0]) + ',' + f1(q[1])).join(' ')}"/>`;
+        } else if (p.t === 'line') {
+          const A = toWorld(T, p.a), B = toWorld(T, p.b), pa = proj(...A), pb = proj(...B);
+          sil += `<line x1="${f1(pa[0])}" y1="${f1(pa[1])}" x2="${f1(pb[0])}" y2="${f1(pb[1])}" stroke="#020409" stroke-width="1.2"/>`;
+        }
+      }
+      // kansivalot (matkustaja-alus)
+      if (T.def.deck) {
+        const side = (a > 8 && a < 172) ? 1 : (a > 188 && a < 352) ? -1 : 0;
+        if (side) for (let row = 0; row < 3; row++) for (let x = -44; x <= 36; x += 4) {
+          const w = toWorld(T, [x + T.m.cx, T.m.cy + side * 7.2, 9.5 + row * 3.6]), r = proj(...w);
+          lamps += `<circle cx="${f1(r[0])}" cy="${f1(r[1])}" r="${f1(Math.max(1.1, Math.min(2.4, 800 / r[2])))}" fill="${DECK}" opacity=".85"/>`;
+        }
+      }
+      // kulkuvalot
+      const tl = Math.floor(performance.now() / 500) % 2;
+      for (const l of T.m.lights) {
+        const cols = colorsAt(l, a);
+        if (!cols.length || (l.f && tl)) continue;
+        const w = toWorld(T, l.p), r = proj(...w), rr = Math.max(1.8, Math.min(8, 6 * Math.sqrt(600 / r[2])));
+        const c = cols[0];
+        lamps += `<circle cx="${f1(r[0])}" cy="${f1(r[1])}" r="${f1(rr * 3.2)}" fill="url(#glow-${c})"/><circle cx="${f1(r[0])}" cy="${f1(r[1])}" r="${f1(rr)}" fill="${COL[c]}"/>`;
+        const wy = HY - VY(elev(0, r[2]));
+        refl += `<rect x="${f1(r[0] - rr * .5)}" y="${f1(wy + 1)}" width="${f1(rr)}" height="${f1(Math.max(4, Math.min(H - wy, (wy - r[1]) * 1.2 + 8)))}" fill="url(#refl-${c})"/>`;
+      }
+      if (s.names || s.peek || (s.enc && s.enc.T === T && s.enc.step > 1)) {
+        const r = proj(T.x, T.y, 0);
+        lamps += `<text x="${f1(r[0])}" y="${f1(Math.min(H - 4, r[1] + 30))}" class="kn-lbl main" text-anchor="middle">${T.def.name}</text>`;
+      }
+    }
+    $('simTrafSil').innerHTML = sil; $('simTraf').innerHTML = lamps; $('simTrafRefl').innerHTML = refl;
+  }
+  function drawAis() {
+    const g = $('simAis'); if (!g) return;
+    const k = ZOOMS[s.zoom] / 1800;
+    g.innerHTML = s.ais ? traffic.map(T => `<g transform="translate(${f1(T.x)},${f1(-T.y)}) rotate(${f1(T.hdg)}) scale(${f1(k)})"><path d="M0,-55 L22,30 -22,30Z" fill="#7fd1ff" stroke="#0b1826" stroke-width="6"/></g>${s.names ? `<text x="${f1(T.x + 60 * k)}" y="${f1(-T.y)}" class="kc-small sim-sm">${T.def.name}</text>` : ''}`).join('') : '';
+  }
+
+  // --- lähestymistilanteet ---
+  const PRIV = { purje:'sail', 'purje-pv':'sail', 'purje-3v':'sail', trooli:'fish', 'trooli-seis':'fish', kalastus:'fish', 'kalastus-pyydys':'fish', nuc:'nuc', 'nuc-kulku':'nuc', ram:'ram', 'ram-kulku':'ram', ruoppaus:'ram', sukellus:'ram', miina:'ram' };
+  function cpaOf(T) {
+    const px = T.x - s.x, py = T.y - s.y;
+    const vx = Math.sin(T.hdg * D2R) * T.def.kn * KN - Math.sin(s.hdg * D2R) * s.v;
+    const vy = Math.cos(T.hdg * D2R) * T.def.kn * KN - Math.cos(s.hdg * D2R) * s.v;
+    const w2 = vx * vx + vy * vy;
+    const t = w2 < 1e-6 ? 0 : -(px * vx + py * vy) / w2;
+    return { t, cpa: Math.hypot(px + vx * t, py + vy * t), d: Math.hypot(px, py) };
+  }
+  function classify(T) {
+    const beta = n180(brg(s.x, s.y, T.x, T.y) - s.hdg);        // toisen suunta omasta keulasta
+    const a = norm(brg(T.x, T.y, s.x, s.y) - T.hdg);           // oma paikka toisen keulasta
+    const vid = V[T.vi].id, priv = PRIV[vid];
+    const weOvertake = a > 112.5 && a < 247.5 && s.v > T.def.kn * KN;
+    const theyOvertake = Math.abs(beta) > 112.5;
+    if (weOvertake) return { ans:'give', rule:'Sääntö 13: ohittava alus väistää aina. Olet toisen aluksen perän puolella, joten sinä ohitat ja väistät.' };
+    if (theyOvertake) return { ans:'stand', rule:'Sääntö 13 ja 17: toinen alus ohittaa sinut ja väistää. Pidä suuntasi ja nopeutesi, mutta seuraa tilannetta.' };
+    if (priv === 'sail') return { ans:'give', rule:'Sääntö 18: konealus väistää purjealusta. Veneesi kulkee koneella, joten se on konealus.' };
+    if (priv === 'fish') return { ans:'give', rule:'Sääntö 18: konealus väistää kalastavaa alusta. Kalastusvalot (vihreä tai punainen valkoisen yläpuolella) kertovat, ettei alus pysty väistämään.' };
+    if (priv) return { ans:'give', rule:'Sääntö 18: ohjailukyvytöntä ja ohjailukyvyltään rajoitettua alusta väistetään.' };
+    if (T.def.narrow) return { ans:'give', rule:'Sääntö 9: kapealla väylällä alle 20 m alus ei saa vaikeuttaa sellaisen aluksen kulkua, joka voi kulkea turvallisesti vain väylällä. Väistä ajoissa väylän oikeaan reunaan.' };
+    const recip = Math.abs(n180(T.hdg - s.hdg - 180)) < 20 && Math.abs(beta) < 25 && (a < 25 || a > 335);
+    if (recip) return { ans:'both', rule:'Sääntö 14: vastakkaisilla tai lähes vastakkaisilla kursseilla molemmat konealukset kääntyvät oikealle ja ohittavat toisensa vasemmat kyljet vastakkain. Kapeassa salmessa pysytään lisäksi oman kulkusuunnan oikeassa reunassa (sääntö 9).' };
+    if (beta > 0) return { ans:'give', rule:'Sääntö 15: risteävillä kursseilla väistää se, jolla toinen on oikealla puolella. Näet toisen aluksen punaisen sivuvalon, joten sinä väistät: käänny oikealle ja ohita sen perän takaa.' };
+    return { ans:'stand', rule:'Sääntö 15 ja 17: toinen alus on vasemmalla puolellasi, joten se väistää. Näet sen vihreän sivuvalon. Pidä suunta ja nopeus, mutta toimi itse, jos se ei väistä.' };
+  }
+  const DEC = [
+    { k:'give', label:'Minä väistän: käännyn selvästi oikealle tai hidastan ja ohitan sen perän takaa' },
+    { k:'stand', label:'Toinen väistää: pidän suuntani ja nopeuteni ja seuraan tilannetta' },
+    { k:'both', label:'Vastakkaiset kurssit: molemmat kääntyvät oikealle' },
+    { k:'left', label:'Käännyn vasemmalle ja ohitan sen keulan edestä' },
+  ];
+  function checkEncounters() {
+    if (s.enc || !s.askEnc || s.aground || s.done) return;
+    for (const T of traffic) {
+      const c = cpaOf(T);
+      if (T.quiz && (c.d > 2200 || c.t < -30)) T.quiz = false;
+      if (T.quiz || T.hold > 0 || c.d > 2000 || c.t <= 0 || c.t > 300 || c.cpa > 180) continue;
+      const b = brg(s.x, s.y, T.x, T.y);
+      if (ray(s.x, s.y, b, c.d) < c.d - 40) continue;
+      T.quiz = true; startEnc(T); return;
+    }
+  }
+  function startEnc(T) {
+    const a = norm(brg(T.x, T.y, s.x, s.y) - T.hdg), sig = signature(T.vi, a);
+    const pool = shuffle(V.map((_, j) => j).filter(j => j !== T.vi && signature(j, a) !== sig)).slice(0, 3);
+    s.enc = { T, step:1, opts: shuffle([T.vi, ...pool]).map(j => ({ label: V[j].short, ok: j === T.vi })), cls: classify(T) };
+    s.paused = true; encUi();
+  }
+  function encUi() {
+    const e = s.enc, box = $('simEnc');
+    if (!e) { box.hidden = true; return; }
+    box.hidden = false;
+    const c = cpaOf(e.T);
+    let h = `<div class="row" style="justify-content:space-between"><p class="eyebrow" style="margin:0">Lähestymistilanne · ${Math.round(c.d)} m · lähin ohitus noin ${Math.round(c.cpa)} m ${Math.round(c.t / 60 * 10) / 10 > 0 ? `${(c.t / 60).toFixed(1).replace('.', ',')} min päästä` : ''}</p><div class="row"><button class="btn" id="simLookAt">Katso alukseen</button><button class="btn" id="simLookFwd">Katso eteen</button></div></div>`;
+    if (e.step === 1) {
+      h += `<p class="question">Mikä alus lähestyy? Katso sen valoja.</p><div class="answers">${e.opts.map((o, k) => `<button data-k="${k}"><kbd>${k + 1}</kbd><span>${o.label}</span></button>`).join('')}</div>`;
+    } else {
+      const ok1 = e.opts[e.pick1].ok;
+      h += `<p class="${ok1 ? 'verdict ok' : 'verdict bad'}" style="margin:0">${ok1 ? 'Oikein' : 'Väärin'}: ${V[e.T.vi].name}. ${V[e.T.vi].desc.slice(0, 2).join('. ')}.</p>`;
+      if (e.step === 2) h += `<p class="question" style="margin-top:8px">Kuka väistää ja mitä teet?</p><div class="answers">${DEC.map((o, k) => `<button data-k="${k}"><kbd>${k + 1}</kbd><span>${o.label}</span></button>`).join('')}</div>`;
+      else {
+        const ok2 = DEC[e.pick2].k === e.cls.ans;
+        h += `<p class="${ok2 ? 'verdict ok' : 'verdict bad'}" style="margin:8px 0 0">${ok2 ? 'Oikea ratkaisu.' : 'Ei oikein.'} Oikea toimintatapa: ${DEC.find(o => o.k === e.cls.ans).label.toLowerCase()}.</p><p style="margin:4px 0 0;color:#b7c2d2">${e.cls.rule}</p><div class="row" style="margin-top:10px"><button class="btn primary" id="simEncGo">Jatka ajoa</button><span class="sector-hint" style="margin:0 0 0 8px">Pidä välilyöntiä pohjassa, niin näet aluksen hämäränäkymässä.</span></div>`;
+      }
+    }
+    box.innerHTML = h;
+    box.querySelectorAll('.answers button').forEach(b => b.onclick = () => encAnswer(+b.dataset.k));
+    $('simLookAt').onclick = () => lookAt(e.T); $('simLookFwd').onclick = () => setLook(0);
+    if (e.step === 1) box.scrollIntoView({ block:'nearest', behavior:'smooth' });
+    const go = $('simEncGo'); if (go) { go.onclick = encDone; go.focus(); }
+  }
+  function encAnswer(k) {
+    const e = s.enc; if (!e) return;
+    if (e.step === 1) { e.pick1 = k; e.step = 2; s.idN++; if (e.opts[k].ok) s.idOk++; }
+    else if (e.step === 2) { e.pick2 = k; e.step = 3; s.decN++; if (DEC[k].k === e.cls.ans) s.decOk++; }
+    encUi(); info();
+  }
+  function encDone() { setPeek(false); s.enc = null; s.paused = false; s.last = performance.now(); encUi(); }
+  function checkCollision() {
+    for (const T of traffic) {
+      const d = Math.hypot(T.x - s.x, T.y - s.y), half = T.def.big ? 95 : T.def.id === 'tow' ? 55 : 10;
+      if (d < half + 8 && !(T.grace > s.t)) {
+        T.grace = s.t + 60;
+        s.aground = true; s.collisions++; s.v = 0; s.rot = 0;
+        banner('YHTEENTÖRMÄYS', `Törmäsit alukseen: ${T.def.name.toLowerCase()}. Peruuta ja väistä ajoissa.`, true);
+        return;
+      }
+    }
+  }
+
   // --- silmukka ---
   function tick() {
     if (st.view !== 'sim') return;
@@ -2124,17 +2445,31 @@ const SIM = (() => {
     let dt = Math.min(.25, (now - s.last) / 1000) * s.scale;
     s.last = now;
     while (dt > 0) { const h = Math.min(.1, dt); step(h); dt -= h; }
-    castView(false); drawLamps(now); hud(); drawChart();
+    castView(false); drawLamps(now); drawTraffic(); hud(); drawChart(); drawAis();
   }
 
   function init() {
     if (s.built) return;
     s.built = true;
-    $('simChart').innerHTML = `<rect x="-6000" y="-6000" width="12000" height="12000" fill="#0b1826"/>${chartStatic()}<g id="simCps"></g><polyline id="simTrack" fill="none" stroke="#d9a34b" stroke-width="1.6" vector-effect="non-scaling-stroke"/><g id="simBoat"><path d="M0,-60 L28,35 0,20 -28,35Z" fill="#d9a34b" stroke="#0b1826" stroke-width="8"/></g>`;
+    $('simChart').innerHTML = `<rect x="-6000" y="-6000" width="12000" height="12000" fill="#0b1826"/>${chartStatic()}<g id="simCps"></g><polyline id="simTrack" fill="none" stroke="#d9a34b" stroke-width="1.6" vector-effect="non-scaling-stroke"/><g id="simAis"></g><g id="simBoat"><path d="M0,-60 L28,35 0,20 -28,35Z" fill="#d9a34b" stroke="#0b1826" stroke-width="8"/></g>`;
     const nm = $('simChart').querySelector('.sim-names'); nm.id = 'simChartNames'; nm.setAttribute('hidden', '');
     bindHold($('simL'), act.left); bindHold($('simR'), act.right); bindHold($('simU'), act.up); bindHold($('simD'), act.down);
     $('simC').onclick = () => { act.center(); hud(); };
-    $('simPause').onclick = () => { s.paused = !s.paused; hud(); };
+    $('simPause').onclick = () => { if (s.enc) return; s.paused = !s.paused; hud(); };
+    bindHold($('simLookL'), () => setLook(s.look - 5)); bindHold($('simLookR'), () => setLook(s.look + 5));
+    $('simLookC').onclick = () => setLook(0);
+    const pk = $('simPeek');
+    pk.addEventListener('pointerdown', (e) => { e.preventDefault(); setPeek(true); });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => pk.addEventListener(t, () => setPeek(false)));
+    window.addEventListener('blur', () => setPeek(false));
+    // katseen kääntö vetämällä yönäkymää
+    const view = $('simBox'); let lk = null;
+    view.addEventListener('pointerdown', (e) => { if (e.target.closest('button,.sim-enc')) return; lk = { x:e.clientX, l:s.look }; try { view.setPointerCapture(e.pointerId); } catch {} });
+    view.addEventListener('pointermove', (e) => { if (lk) setLook(lk.l - (e.clientX - lk.x) * FOV / Math.max(300, view.clientWidth)); });
+    const endLk = () => { lk = null; }; view.addEventListener('pointerup', endLk); view.addEventListener('pointercancel', endLk);
+    view.addEventListener('dblclick', () => setLook(0));
+    $('simEncIn').onchange = (e) => { s.askEnc = e.target.checked; };
+    $('simAisIn').onchange = (e) => { s.ais = e.target.checked; drawAis(); };
     $('simReset').onclick = reset;
     document.querySelectorAll('#simZoom button').forEach(b => b.onclick = () => {
       s.zoom = b.dataset.z; document.querySelectorAll('#simZoom button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); drawChart();
@@ -2150,7 +2485,8 @@ const SIM = (() => {
     reset();
     setInterval(tick, 40);
   }
-  return { _s: s, _step: step, _m: () => MISSION, _set: (id) => { MISSION = MISSIONS.find(m => m.id === id); reset(); }, _fw: fairwayAt, init, key, show() { s.last = performance.now(); init(); castView(true); drawChart(); hud(); info(); } };
+  function keyup(e) { if (st.view === 'sim' && e.key === ' ') { setPeek(false); e.preventDefault(); } }
+  return { keyup, _s: s, _step: step, _tr: () => traffic, _m: () => MISSION, _set: (id) => { MISSION = MISSIONS.find(m => m.id === id); reset(); }, _fw: fairwayAt, init, key, show() { s.last = performance.now(); init(); castView(true); drawChart(); hud(); info(); } };
 })();
 
 /* ---------- views ---------- */
@@ -2179,6 +2515,7 @@ function setView(v) {
 }
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => setView(b.dataset.view));
 
+document.addEventListener('keyup', (e) => SIM.keyup(e));
 document.addEventListener('keydown', (e) => {
   if (st.view === 'sim') { SIM.key(e); return; }
   if (e.target.closest('select,input[type="range"]') && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) return;
