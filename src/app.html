@@ -24,8 +24,9 @@ header{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;justify-cont
 .brand h1{margin:0;font-size:26px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
 .brand h1 span{color:var(--brass)}
 .brand p{margin:0;color:var(--muted);font-size:15px}
-.tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px}
 .tabs button{border:0;background:none;padding:6px 16px;border-radius:999px;cursor:pointer;font-weight:600;letter-spacing:.04em;color:var(--muted)}
+@media (max-width:560px){.tabs{border-radius:12px}.tabs button{padding:6px 11px}}
 .tabs button[aria-selected="true"]{background:var(--brass);color:var(--brass-ink)}
 .tabs button:focus-visible,.btn:focus-visible,.seg button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
 
@@ -102,6 +103,24 @@ select{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;
 .verdict{font-weight:600}
 .verdict.ok{color:var(--ok)} .verdict.bad{color:var(--bad)}
 
+.answers button.sel{border-color:var(--brass);background:#2a2110}
+
+/* exam */
+.exam-start{display:grid;gap:10px}
+.exam-start p{margin:0;max-width:65ch}
+.progress{display:flex;gap:6px;flex-wrap:wrap}
+.progress button{width:34px;height:30px;border-radius:6px;border:1px solid var(--line2);background:var(--panel2);font:500 13px var(--mono);color:var(--muted);cursor:pointer}
+.progress button.done{color:var(--text);border-color:#4a5d78}
+.progress button.cur{border-color:var(--brass);color:var(--brass)}
+.review{margin:0;padding:0;list-style:none;display:grid;gap:6px}
+.review button{width:100%;text-align:left;display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:center;border:1px solid var(--line2);background:var(--panel2);border-radius:8px;padding:8px 12px;cursor:pointer;line-height:1.3}
+.review button.cur{border-color:var(--brass)}
+.review .n{font:500 13px var(--mono);color:var(--muted)}
+.review .mark{font-weight:700}
+.review .mark.ok{color:var(--ok)} .review .mark.bad{color:var(--bad)}
+.review small{display:block;color:var(--muted);font-size:14px}
+.pass{color:var(--ok)} .fail{color:var(--bad)}
+
 /* guide */
 .guide{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
 .guide .card h2{font-size:19px}
@@ -112,6 +131,14 @@ a{color:var(--brass)}
 </style>
 
 <div class="wrap">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+          <defs id="sharedDefs">
+            <linearGradient id="skyN" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#02040a"/><stop offset="1" stop-color="#0a1322"/></linearGradient>
+            <linearGradient id="skyD" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2c3850"/><stop offset=".75" stop-color="#5d6a80"/><stop offset="1" stop-color="#7d879a"/></linearGradient>
+            <linearGradient id="waterN" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#04080f"/><stop offset="1" stop-color="#010204"/></linearGradient>
+            <linearGradient id="waterD" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a3446"/><stop offset="1" stop-color="#151b26"/></linearGradient>
+          </defs>
+</svg>
   <header>
     <div class="brand">
       <h1>Kulku<span>valot</span></h1>
@@ -120,6 +147,8 @@ a{color:var(--brass)}
     <nav class="tabs" role="tablist" aria-label="Osiot">
       <button role="tab" id="tab-harjoittelu" aria-selected="true" data-view="harjoittelu">Harjoittelu</button>
       <button role="tab" id="tab-tehtavat" aria-selected="false" data-view="tehtavat">Tehtävät</button>
+      <button role="tab" id="tab-tentti" aria-selected="false" data-view="tentti">Tentti</button>
+      <button role="tab" id="tab-turva" aria-selected="false" data-view="turva">Turvalaitteet</button>
       <button role="tab" id="tab-ohje" aria-selected="false" data-view="ohje">Ohje</button>
     </nav>
   </header>
@@ -128,13 +157,7 @@ a{color:var(--brass)}
     <section>
       <div class="stage-box" id="stageBox">
         <svg id="stage" viewBox="0 0 1000 560" role="img" aria-label="Aluksen valot pimeässä">
-          <defs>
-            <linearGradient id="skyN" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#02040a"/><stop offset="1" stop-color="#0a1322"/></linearGradient>
-            <linearGradient id="skyD" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2c3850"/><stop offset=".75" stop-color="#5d6a80"/><stop offset="1" stop-color="#7d879a"/></linearGradient>
-            <linearGradient id="waterN" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#04080f"/><stop offset="1" stop-color="#010204"/></linearGradient>
-            <linearGradient id="waterD" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a3446"/><stop offset="1" stop-color="#151b26"/></linearGradient>
-          </defs>
-          <rect id="skyN" x="0" y="0" width="1000" height="560" fill="url(#skyN)"/>
+          <rect x="0" y="0" width="1000" height="560" fill="url(#skyN)"/>
           <rect class="sky-dusk" x="0" y="0" width="1000" height="560" fill="url(#skyD)"/>
           <g id="waterG"></g>
           <g id="reflG"></g>
@@ -188,11 +211,36 @@ a{color:var(--brass)}
           </div>
         </div>
       </div>
+
+      <!-- exam controls -->
+      <div class="controls" id="examControls" hidden>
+        <div id="examStart" class="exam-start">
+          <p class="question">Kulkuvalotentti</p>
+          <p class="muted">Tentissä on 10 kysymystä: 7 kertaa "Mikä alus?" ja 3 kertaa "Mistä suunnasta?". Näet oikeat vastaukset vasta lopussa. Hyväksytty raja on 8 oikein.</p>
+          <div class="row"><button class="btn primary" id="examBegin">Aloita tentti</button></div>
+          <div id="examHist" class="score"></div>
+        </div>
+        <div id="examRun" hidden>
+          <div class="progress" id="examProg"></div>
+          <p class="question" id="examQ"></p>
+          <div class="answers" id="examAns"></div>
+          <div class="row" style="justify-content:space-between">
+            <button class="btn" id="examPrev">◀ Edellinen</button>
+            <button class="btn primary" id="examNext">Seuraava ▶</button>
+          </div>
+        </div>
+        <div id="examResult" hidden>
+          <p class="question" id="examScore"></p>
+          <p class="muted">Avaa kysymys valitsemalla se listasta.</p>
+          <ol class="review" id="examReview"></ol>
+          <div class="row"><button class="btn primary" id="examAgain">Uusi tentti</button></div>
+        </div>
+      </div>
     </section>
 
     <aside class="side" id="side">
       <div class="card" id="infoCard"></div>
-      <div class="card">
+      <div class="card" id="sectorCard">
         <p class="eyebrow">Missä olet aluksesta</p>
         <div class="sector-wrap">
           <svg id="sector" viewBox="0 0 160 160" role="slider" tabindex="0" aria-label="Katselusuunta aluksen ympärillä"></svg>
@@ -205,6 +253,62 @@ a{color:var(--brass)}
         </div>
         <p class="sector-text" id="sectorText"></p>
         <p class="sector-hint" id="sectorHint">Napauta tai vedä kehällä, niin siirryt aluksen ympäri.</p>
+      </div>
+    </aside>
+  </div>
+
+  <div class="main" id="view-turva" hidden>
+    <section>
+      <div class="stage-box" id="aidBox">
+        <svg id="aidStage" viewBox="0 0 1000 560" role="img" aria-label="Turvalaitteen valo pimeässä">
+          <rect x="0" y="0" width="1000" height="560" fill="url(#skyN)"/>
+          <rect class="sky-dusk" x="0" y="0" width="1000" height="560" fill="url(#skyD)"/>
+          <rect x="0" y="432" width="1000" height="128" fill="url(#waterN)"/>
+          <rect class="water-dusk" x="0" y="432" width="1000" height="128" fill="url(#waterD)"/>
+          <line x1="0" x2="1000" y1="432" y2="432" stroke="#16202f"/>
+          <g id="aidRefl"></g>
+          <g id="aidBody" class="hull"></g>
+          <g id="aidLights"></g>
+        </svg>
+        <div class="stage-tag" id="aidTag"></div>
+        <div class="stage-bearing" id="aidCh"></div>
+      </div>
+      <div class="controls">
+        <div class="row" style="justify-content:space-between">
+          <div class="seg" role="group" aria-label="Turvalaitteiden tila" id="aidSeg">
+            <button data-m="learn" aria-pressed="true">Harjoittele</button>
+            <button data-m="quiz" aria-pressed="false">Tunnista merkki</button>
+          </div>
+          <div class="score" id="aidScore"></div>
+        </div>
+        <div id="aidLearn" class="controls" style="margin-top:0">
+          <div class="row">
+            <button class="btn" id="aidPrev">◀ Edellinen</button>
+            <select id="aidSel" aria-label="Valitse turvalaite"></select>
+            <button class="btn" id="aidNext">Seuraava ▶</button>
+          </div>
+          <label class="angle" id="aidPosRow" for="aidPos" hidden>
+            <span class="muted" style="white-space:nowrap">Veneen paikka</span>
+            <input type="range" id="aidPos" min="-100" max="100" step="1" value="0" aria-label="Veneen paikka sivusuunnassa">
+          </label>
+          <div class="row">
+            <button class="btn primary" id="aidReveal">Näytä merkki</button>
+            <span class="muted" style="font-size:14px">Laske välähdykset ja jakson pituus ennen kuin paljastat merkin.</span>
+          </div>
+        </div>
+        <div id="aidQuiz" class="controls" style="margin-top:0" hidden>
+          <p class="question">Mikä merkki?</p>
+          <div class="answers" id="aidAns"></div>
+          <div class="row" style="justify-content:flex-end"><button class="btn primary" id="aidNextQ">Seuraava</button></div>
+        </div>
+      </div>
+    </section>
+    <aside class="side">
+      <div class="card" id="aidInfo"></div>
+      <div class="card" id="aidRhythmCard">
+        <p class="eyebrow">Valon rytmi</p>
+        <svg id="aidRhythm" viewBox="0 0 300 64" style="width:100%;height:auto;display:block"></svg>
+        <p class="sector-hint" id="aidRhythmText"></p>
       </div>
     </aside>
   </div>
@@ -222,6 +326,18 @@ a{color:var(--brass)}
         <h2>Kaksi tehtävätyyppiä</h2>
         <p><b>Mikä alus?</b> Tunnista alus neljästä vaihtoehdosta. Vaihtoehdoissa ei ole aluksia, jotka näyttävät samasta suunnasta täsmälleen samoilta.</p>
         <p><b>Mistä suunnasta?</b> Alus kerrotaan, ja sinä päättelet, näetkö sen edestä, oikealta, takaa vai vasemmalta. Tätä tietoa tarvitset väistämissääntöjen soveltamiseen.</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">Tentti</p>
+        <h2>10 kysymystä kulkuvaloista</h2>
+        <p>Tentissä on 7 "Mikä alus?" -kysymystä ja 3 "Mistä suunnasta?" -kysymystä. Sama alus ei esiinny tentissä kahdesti, ja osa kulmista on vinoja.</p>
+        <p>Voit liikkua kysymysten välillä ja vaihtaa vastauksia. Kun lopetat tentin, näet tuloksen ja voit käydä läpi jokaisen kysymyksen. Hyväksytty raja on 8/10.</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">Turvalaitteet</p>
+        <h2>Merkit ja loistot</h2>
+        <p>Valo vilkkuu merkin oikealla rytmillä. Laske välähdykset ja jakson pituus ja päättele merkki. Rytmikaavio näyttää valon vaiheet ja jakson kulun.</p>
+        <p>Sektoriloistossa ja linjaloistossa venettä siirretään liukusäätimellä, jolloin näet, miten valon väri tai valojen asema muuttuu.</p>
       </div>
       <div class="card">
         <p class="eyebrow">Näppäimet</p>
@@ -575,7 +691,7 @@ function render(i, th) {
   reflG.innerHTML = rh;
 }
 (function glowDefs() {
-  const defs = document.querySelector('#stage defs');
+  const defs = document.getElementById('sharedDefs');
   let s = '';
   for (const k in COL) {
     s += `<radialGradient id="glow-${k}"><stop offset="0" stop-color="${COL[k]}" stop-opacity=".55"/><stop offset=".35" stop-color="${COL[k]}" stop-opacity=".16"/><stop offset="1" stop-color="${COL[k]}" stop-opacity="0"/></radialGradient>`;
@@ -617,7 +733,7 @@ function sectorText(th, show) {
   if (colorsAt({ s:'port' }, a).length) seen.push('punainen sivuvalo');
   if (colorsAt({ s:'stern' }, a).length) seen.push('perävalo');
   const list = seen.length > 1 ? seen.slice(0, -1).join(', ') + ' ja ' + seen[seen.length - 1] : seen[0];
-  return `Katsot alusta ${aspectName(th)} (${Math.round(a)}°). Perusvaloista tähän suuntaan näkyy ${list}.`;
+  return `Katsot alusta ${aspectName(th)} (${Math.round(a)}°). Jos alus on kulussa, tähän suuntaan näkyy sen kulkuvaloista ${list}.`;
 }
 function drawSector(th, show) {
   $('sector').innerHTML = sectorSvg(th, show);
@@ -730,30 +846,37 @@ function signature(i, th) {
   const L = visibleLights(model(i), th).slice().sort((a, b) => a.y - b.y || a.x - b.x);
   return L.map(l => l.cols.join('') + (l.f ? '*' : '')).join('|');
 }
-function pickAngle(v) {
+function pickAngle(v, oblique) {
   if (v.angles) { const [a0, a1] = v.angles[rnd(v.angles.length)]; return a0 + rnd(a1 - a0 + 1); }
-  if (st.oblique) return rnd(360);
+  if (oblique) return rnd(360);
   return rnd(4) * 90;
 }
-function newQuestion() {
+function makeTypeQ(oblique, avoid = new Set()) {
   let q;
-  if (st.qType === 'type') {
-    for (let tries = 0; tries < 40; tries++) {
-      const i = rnd(V.length), th = pickAngle(V[i]), sig = signature(i, th);
-      const twins = V.filter((_, j) => j !== i && signature(j, th) === sig).length;
-      q = { i, th, sig };
-      if (!twins) break;
-    }
-    const pool = shuffle(V.map((_, j) => j).filter(j => j !== q.i && signature(j, q.th) !== q.sig));
-    const same = pool.filter(j => V[j].grp === V[q.i].grp), other = pool.filter(j => V[j].grp !== V[q.i].grp);
-    const picks = [...same.slice(0, 2), ...other].slice(0, 3);
-    q.opts = shuffle([q.i, ...picks]).map(j => ({ label: V[j].short, ok: j === q.i }));
-  } else {
-    const movers = V.map((v, j) => j).filter(j => V[j].moving && !V[j].angles);
-    const i = movers[rnd(movers.length)], base = rnd(4) * 90;
-    const th = norm(base + (st.oblique ? rnd(41) - 20 : 0));
-    q = { i, th, opts: ASPECT4.map((label, k) => ({ label, ok: k === aspect4(th) })) };
+  for (let tries = 0; tries < 60; tries++) {
+    const i = rnd(V.length);
+    if (avoid.has(i) && tries < 50) continue;
+    const th = pickAngle(V[i], oblique), sig = signature(i, th);
+    const twins = V.filter((_, j) => j !== i && signature(j, th) === sig).length;
+    q = { i, th, sig };
+    if (!twins) break;
   }
+  const pool = shuffle(V.map((_, j) => j).filter(j => j !== q.i && signature(j, q.th) !== q.sig));
+  const same = pool.filter(j => V[j].grp === V[q.i].grp), other = pool.filter(j => V[j].grp !== V[q.i].grp);
+  const picks = [...same.slice(0, 2), ...other].slice(0, 3);
+  q.kind = 'type';
+  q.opts = shuffle([q.i, ...picks]).map(j => ({ label: V[j].short, ok: j === q.i }));
+  return q;
+}
+function makeDirQ(oblique, avoid = new Set()) {
+  const movers = V.map((v, j) => j).filter(j => V[j].moving && !V[j].angles && !avoid.has(j));
+  const i = movers[rnd(movers.length)], base = rnd(4) * 90;
+  const th = norm(base + (oblique ? rnd(41) - 20 : 0));
+  return { kind:'dir', i, th, opts: ASPECT4.map((label, k) => ({ label, ok: k === aspect4(th) })) };
+}
+const qText = (q) => q.kind === 'type' ? 'Mikä alus?' : `Mistä suunnasta näet aluksen: ${V[q.i].short.toLowerCase()}?`;
+function newQuestion() {
+  const q = st.qType === 'type' ? makeTypeQ(st.oblique) : makeDirQ(st.oblique);
   q.answered = false; st.q = q; drawQuiz();
 }
 function drawQuiz() {
@@ -763,7 +886,7 @@ function drawQuiz() {
   $('stageTag').textContent = `TEHTÄVÄ ${st.score.n + (q.answered ? 0 : 1)}`;
   $('stageBearing').textContent = q.answered ? `${String(Math.round(norm(q.th))).padStart(3, '0')}°` : '';
   $('stageHint').textContent = '';
-  $('question').textContent = st.qType === 'type' ? 'Mikä alus?' : `Mistä suunnasta näet aluksen: ${v.short.toLowerCase()}?`;
+  $('question').textContent = qText(q);
   $('answers').innerHTML = q.opts.map((o, k) => {
     let cls = '';
     if (q.answered) cls = o.ok ? 'right' : (q.pick === k ? 'wrong' : '');
@@ -779,7 +902,7 @@ function drawQuiz() {
     verdict = `<p class="tip"><span class="verdict ${ok ? 'ok' : 'bad'}">${ok ? 'Oikein.' : 'Väärin.'}</span> Näet aluksen ${aspectName(q.th)} (${Math.round(norm(q.th))}°).</p>`;
   }
   $('infoCard').innerHTML = q.answered ? infoHtml(v, true, verdict)
-    : `<p class="eyebrow">Tehtävä</p><h2>${st.qType === 'type' ? 'Tunnista alus valoista' : 'Päättele katselusuunta'}</h2><p class="muted">Valitse vastaus painikkeesta tai numeronäppäimellä 1–4.</p>`;
+    : `<p class="eyebrow">Tehtävä</p><h2>${q.kind === 'type' ? 'Tunnista alus valoista' : 'Päättele katselusuunta'}</h2><p class="muted">Valitse vastaus painikkeesta tai numeronäppäimellä 1–4.</p>`;
   drawSector(q.th, q.answered);
 }
 function answer(k) {
@@ -800,19 +923,325 @@ $('obliqueIn').checked = st.oblique;
 $('obliqueIn').onchange = (e) => { st.oblique = e.target.checked; store.set('oblique', st.oblique); newQuestion(); };
 document.querySelectorAll('#quizSeg button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.q === st.qType)));
 
+/* ---------- exam ---------- */
+const EXAM_N = 10, EXAM_DIR = 3, EXAM_PASS = 8;
+function makeExam() {
+  const kinds = shuffle([...Array(EXAM_N - EXAM_DIR).fill('type'), ...Array(EXAM_DIR).fill('dir')]);
+  const used = new Set(), qs = [];
+  for (const k of kinds) {
+    const obl = Math.random() < .4;
+    const q = k === 'type' ? makeTypeQ(obl, used) : makeDirQ(obl, used);
+    used.add(q.i); q.pick = null; qs.push(q);
+  }
+  return { qs, cur:0, done:false };
+}
+function examShow(part) {
+  $('examStart').hidden = part !== 'start';
+  $('examRun').hidden = part !== 'run';
+  $('examResult').hidden = part !== 'result';
+}
+function drawExamStart() {
+  examShow('start');
+  const hist = store.get('examHist', []);
+  $('examHist').innerHTML = hist.length ? `<span>Viimeisimmät: ${hist.slice(-5).reverse().map(h => `<b class="${h.ok >= EXAM_PASS ? 'pass' : 'fail'}">${h.ok}/${EXAM_N}</b>`).join(' ')}</span>` : '';
+  render(st.idx, 90);
+  stageBox.classList.remove('reveal');
+  $('stageTag').textContent = 'TENTTI'; $('stageBearing').textContent = ''; $('stageHint').textContent = '';
+  $('infoCard').innerHTML = `<p class="eyebrow">Tentti</p><h2>10 kysymystä kulkuvaloista</h2><ul><li>7 kertaa "Mikä alus?" ja 3 kertaa "Mistä suunnasta?"</li><li>Osa kulmista on vinoja</li><li>Voit vaihtaa vastauksia ennen tentin lopettamista</li><li>Hyväksytty raja on ${EXAM_PASS}/${EXAM_N}</li></ul>`;
+  drawSector(0, false);
+}
+function drawExamRun() {
+  const ex = st.exam, q = ex.qs[ex.cur];
+  examShow('run');
+  render(q.i, q.th);
+  stageBox.classList.remove('reveal');
+  $('stageTag').textContent = `TENTTI · KYSYMYS ${ex.cur + 1} / ${EXAM_N}`; $('stageBearing').textContent = '';
+  $('examProg').innerHTML = ex.qs.map((x, k) => `<button data-k="${k}" class="${x.pick != null ? 'done' : ''} ${k === ex.cur ? 'cur' : ''}" aria-label="Kysymys ${k + 1}">${k + 1}</button>`).join('');
+  $('examProg').querySelectorAll('button').forEach(b => b.onclick = () => { ex.cur = +b.dataset.k; drawExamRun(); });
+  $('examQ').textContent = `${ex.cur + 1}. ${qText(q)}`;
+  $('examAns').innerHTML = q.opts.map((o, k) => `<button data-k="${k}" class="${q.pick === k ? 'sel' : ''}"><kbd>${k + 1}</kbd><span>${o.label}</span></button>`).join('');
+  $('examAns').querySelectorAll('button').forEach(b => b.onclick = () => examPick(+b.dataset.k));
+  $('examPrev').disabled = ex.cur === 0;
+  const last = ex.cur === EXAM_N - 1, answered = ex.qs.filter(x => x.pick != null).length;
+  $('examNext').textContent = last ? 'Lopeta ja näytä tulos' : 'Seuraava ▶';
+  $('examNext').disabled = last && answered < EXAM_N;
+  $('infoCard').innerHTML = `<p class="eyebrow">Tentti käynnissä</p><h2>Vastattu ${answered} / ${EXAM_N}</h2><p class="muted">${last && answered < EXAM_N ? 'Vastaa kaikkiin kysymyksiin ennen kuin lopetat. Pääset vastaamattomiin numeroista.' : 'Oikeat vastaukset näet, kun lopetat tentin.'}</p>`;
+  drawSector(q.th, false);
+}
+function examPick(k) { st.exam.qs[st.exam.cur].pick = k; drawExamRun(); }
+function examFinish() {
+  const ex = st.exam; ex.done = true; ex.cur = 0;
+  ex.ok = ex.qs.filter(q => q.opts[q.pick]?.ok).length;
+  const hist = store.get('examHist', []); hist.push({ ok: ex.ok, t: Date.now() }); store.set('examHist', hist.slice(-20));
+  drawExamResult();
+}
+function drawExamResult() {
+  const ex = st.exam, q = ex.qs[ex.cur], v = V[q.i];
+  examShow('result');
+  const pass = ex.ok >= EXAM_PASS;
+  $('examScore').innerHTML = `Tulos ${ex.ok} / ${EXAM_N}: <span class="${pass ? 'pass' : 'fail'}">${pass ? 'hyväksytty' : 'hylätty'}</span>`;
+  $('examReview').innerHTML = ex.qs.map((x, k) => {
+    const ok = x.opts[x.pick]?.ok, right = x.opts.find(o => o.ok).label, mine = x.opts[x.pick]?.label ?? '–';
+    return `<li><button data-k="${k}" class="${k === ex.cur ? 'cur' : ''}"><span class="n">${k + 1}.</span><span>${x.kind === 'type' ? 'Mikä alus?' : 'Mistä suunnasta: ' + V[x.i].short.toLowerCase()}<small>Vastasit: ${mine}${ok ? '' : ` · Oikein: ${right}`}</small></span><span class="mark ${ok ? 'ok' : 'bad'}">${ok ? '✓' : '✗'}</span></button></li>`;
+  }).join('');
+  $('examReview').querySelectorAll('button').forEach(b => b.onclick = () => { ex.cur = +b.dataset.k; drawExamResult(); });
+  render(q.i, q.th);
+  stageBox.classList.add('reveal');
+  $('stageTag').textContent = `TENTTI · KYSYMYS ${ex.cur + 1} / ${EXAM_N}`;
+  $('stageBearing').textContent = `${String(Math.round(norm(q.th))).padStart(3, '0')}°`;
+  const ok = q.opts[q.pick]?.ok;
+  $('infoCard').innerHTML = infoHtml(v, true, `<p class="tip"><span class="verdict ${ok ? 'ok' : 'bad'}">${ok ? 'Oikein.' : 'Väärin.'}</span> Näet aluksen ${aspectName(q.th)} (${Math.round(norm(q.th))}°).</p>`);
+  drawSector(q.th, true);
+}
+function drawExam() {
+  if (!st.exam) drawExamStart(); else if (st.exam.done) drawExamResult(); else drawExamRun();
+}
+$('examBegin').onclick = () => { st.exam = makeExam(); drawExamRun(); };
+$('examAgain').onclick = () => { st.exam = makeExam(); drawExamRun(); };
+$('examPrev').onclick = () => { if (st.exam.cur > 0) { st.exam.cur--; drawExamRun(); } };
+$('examNext').onclick = () => {
+  const ex = st.exam;
+  if (ex.cur < EXAM_N - 1) { ex.cur++; drawExamRun(); }
+  else if (ex.qs.every(q => q.pick != null)) examFinish();
+};
+
+/* ---------- aids to navigation (turvalaitteet) ---------- */
+// rytmi: lista [kesto s, väri tai 0], summa = jakso
+function flashes(n, on, off, c) { const s = []; for (let i = 0; i < n; i++) s.push([on, c], [off, 0]); return s; }
+function pad(seq, period) { const t = seq.reduce((a, x) => a + x[0], 0); if (period > t) seq.push([period - t, 0]); return seq; }
+const K = { black:'#15181d', yellow:'#f2c200', red:'#d8282f', green:'#1f9d55', white:'#eeeee8', blue:'#1f5fd8' };
+const AIDS = [
+  { id:'pohj', name:'Pohjoinen kardinaalimerkki', short:'Pohjoinen kardinaalimerkki', ch:'Q', seq: flashes(1,.3,.7,'w'),
+    bands:[K.black,K.yellow], top:'nn', desc:['Valkoinen, jatkuva nopea vilkku (Q), noin 60 välähdystä minuutissa', 'Väri: musta yläpuolella, keltainen alapuolella', 'Huippumerkki: kaksi kartiota kärjet ylöspäin'],
+    tip:'Kulje merkin pohjoispuolelta. Jatkuva vilkku ilman taukoa: pohjoinen.' },
+  { id:'ita', name:'Itäinen kardinaalimerkki', short:'Itäinen kardinaalimerkki', ch:'Q(3) 10s', seq: pad(flashes(3,.3,.7,'w'), 10),
+    bands:[K.black,K.yellow,K.black], top:'ee', desc:['Valkoinen, kolme nopeaa välähdystä 10 sekunnin välein: Q(3) 10s', 'Väri: musta, keltainen vaakavyö, musta', 'Huippumerkki: kartiot kannat vastakkain'],
+    tip:'Kulje merkin itäpuolelta. Kolme välähdystä kuin kello kolme.' },
+  { id:'etela', name:'Eteläinen kardinaalimerkki', short:'Eteläinen kardinaalimerkki', ch:'Q(6)+LFl 15s', seq: pad([...flashes(6,.3,.7,'w'), [2,'w'], [.5,0]], 15),
+    bands:[K.yellow,K.black], top:'ss', desc:['Valkoinen, kuusi nopeaa välähdystä ja pitkä välähdys 15 sekunnin välein: Q(6)+LFl 15s', 'Väri: keltainen yläpuolella, musta alapuolella', 'Huippumerkki: kaksi kartiota kärjet alaspäin'],
+    tip:'Kulje merkin eteläpuolelta. Kuusi välähdystä kuin kello kuusi, ja pitkä välähdys erottaa sen läntisestä ja itäisestä.' },
+  { id:'lansi', name:'Läntinen kardinaalimerkki', short:'Läntinen kardinaalimerkki', ch:'Q(9) 15s', seq: pad(flashes(9,.3,.7,'w'), 15),
+    bands:[K.yellow,K.black,K.yellow], top:'ww', desc:['Valkoinen, yhdeksän nopeaa välähdystä 15 sekunnin välein: Q(9) 15s', 'Väri: keltainen, musta vaakavyö, keltainen', 'Huippumerkki: kartiot kärjet vastakkain'],
+    tip:'Kulje merkin länsipuolelta. Yhdeksän välähdystä kuin kello yhdeksän.' },
+  { id:'erillinen', name:'Erillisen vaaran merkki', short:'Erillisen vaaran merkki', ch:'Fl(2) 5s', seq: pad([[.5,'w'],[1,0],[.5,'w']], 5),
+    bands:[K.black,K.red,K.black], top:'balls', desc:['Valkoinen, kahden välähdyksen ryhmä: Fl(2) 5s', 'Väri: musta ja punainen vaakavyö', 'Huippumerkki: kaksi mustaa palloa'],
+    tip:'Merkki on pienen, joka puolelta kierrettävän vaaran päällä. Älä aja aivan vierestä.' },
+  { id:'turvavesi', name:'Turvavesimerkki', short:'Turvavesimerkki', ch:'LFl 10s', seq: pad([[2,'w']], 10),
+    stripes:[K.red,K.white], top:'ball', desc:['Valkoinen, pitkä välähdys 10 sekunnin välein: LFl 10s (myös Iso, Oc tai Mo(A))', 'Väri: punaiset ja valkoiset pystyraidat', 'Huippumerkki: yksi punainen pallo'],
+    tip:'Merkin ympärillä on turvallista vettä. Merkki voi osoittaa väylän alkua tai keskilinjaa.' },
+  { id:'erikois', name:'Erikoismerkki', short:'Erikoismerkki', ch:'Fl Y 4s', seq: pad([[.5,'y']], 4),
+    bands:[K.yellow], top:'x', desc:['Keltainen valo, esimerkiksi välähdys 4 sekunnin välein: Fl Y 4s', 'Väri: keltainen', 'Huippumerkki: keltainen vinoristi'],
+    tip:'Merkitsee erityisalueen, esimerkiksi kaapelin, putken tai harjoitusalueen. Katso merikartasta.' },
+  { id:'vasen', name:'Vasen sivumerkki', short:'Vasen sivumerkki', ch:'Fl R 3s', seq: pad([[.5,'r']], 3),
+    bands:[K.red], top:'can', desc:['Punainen valo, esimerkiksi välähdys 3 sekunnin välein: Fl R 3s', 'Väri: punainen', 'Huippumerkki: punainen lieriö'],
+    tip:'Väylän perussuuntaan kuljettaessa merkki jätetään vasemmalle puolelle.' },
+  { id:'oikea', name:'Oikea sivumerkki', short:'Oikea sivumerkki', ch:'Fl G 3s', seq: pad([[.5,'g']], 3),
+    bands:[K.green], top:'cone', desc:['Vihreä valo, esimerkiksi välähdys 3 sekunnin välein: Fl G 3s', 'Väri: vihreä', 'Huippumerkki: vihreä kartio kärki ylöspäin'],
+    tip:'Väylän perussuuntaan kuljettaessa merkki jätetään oikealle puolelle.' },
+  { id:'hylky', name:'Uuden vaaran merkki (hylky)', short:'Uuden vaaran merkki', ch:'Al Bu Y 3s', seq: [[1,'b'],[.5,0],[1,'y'],[.5,0]],
+    stripes:[K.blue,K.yellow], top:'plus', desc:['Vuorotteleva sininen ja keltainen valo: Al Bu Y 3s', 'Väri: siniset ja keltaiset pystyraidat', 'Huippumerkki: keltainen pystyristi'],
+    tip:'Merkitsee uuden, merikarttaan vielä merkitsemättömän vaaran, kuten hylyn.' },
+  { id:'sektori', name:'Sektoriloisto', short:'Sektoriloisto', ch:'Oc WRG 6s', kind:'sector', seq: [[4.5,'*'],[1.5,0]],
+    desc:['Valon väri riippuu siitä, mistä suunnasta loistoa katsotaan', 'Valkoinen sektori: turvallinen väylä', 'Punainen ja vihreä sektori: väylän sivut', 'Rytmi: pimenevä, Oc WRG 6s'],
+    tip:'Siirrä venettä liukusäätimellä. Punainen tarkoittaa, että olet ajautunut väylän vasemmalle puolelle, ja vihreä, että olet ajautunut oikealle puolelle. Tarkista sektorien värit ja rajat aina merikartasta.' },
+  { id:'linja', name:'Linjaloisto', short:'Linjaloisto', ch:'Etu Q · Taka Iso 4s', kind:'leading', seq: [[2,'*'],[2,0]],
+    desc:['Kaksi loistoa: etuloisto alempana ja lähempänä, takaloisto ylempänä ja kauempana', 'Kun valot ovat päällekkäin, olet linjalla', 'Tässä esimerkissä etuloisto vilkkuu nopeasti (Q) ja takaloisto on tasavaiheinen (Iso 4s)'],
+    tip:'Siirrä venettä liukusäätimellä. Jos takaloisto näkyy etuloiston oikealla puolella, olet linjan oikealla puolella ja sinun pitää ohjata vasemmalle.' },
+];
+const BUOYS = AIDS.map((a, i) => i).filter(i => !AIDS[i].kind);
+const Q_SEQ = flashes(1,.3,.7,'w');
+const at = { idx: Math.min(store.get('aidIdx', 0), AIDS.length - 1), reveal:false, mode:'learn', pos:0, q:null, score:{ n:0, ok:0 }, t0: performance.now() };
+
+function seqState(seq, t) {
+  const period = seq.reduce((a, x) => a + x[0], 0);
+  let u = ((t % period) + period) % period;
+  for (const [d, c] of seq) { if (u < d) return c; u -= d; }
+  return 0;
+}
+function sectorColor(pos) { return pos < -18 ? 'r' : pos > 18 ? 'g' : 'w'; }
+
+function drawBuoy(a) {
+  const cx = 500, wl = 432;
+  let s = `<polygon points="${cx-70},${wl} ${cx+70},${wl} ${cx+52},${wl-34} ${cx-52},${wl-34}" fill="${a.bands ? a.bands[a.bands.length-1] : a.stripes[0]}"/>`;
+  const top = wl - 190, bot = wl - 34, x0 = cx - 34, w = 68;
+  if (a.bands) {
+    const h = (bot - top) / a.bands.length;
+    a.bands.forEach((c, i) => { s += `<rect x="${x0}" y="${top + i*h}" width="${w}" height="${h + .5}" fill="${c}"/>`; });
+  } else {
+    const n = 4, sw = w / n;
+    for (let i = 0; i < n; i++) s += `<rect x="${x0 + i*sw}" y="${top}" width="${sw + .5}" height="${bot - top}" fill="${a.stripes[i % 2]}"/>`;
+  }
+  s += `<rect x="${cx-12}" y="${top-26}" width="24" height="26" fill="#2a2f38"/>`;
+  s += `<line x1="${cx}" y1="${top-26}" x2="${cx}" y2="${top-120}" stroke="#2a2f38" stroke-width="4"/>`;
+  s += topmark(a.top, cx, top - 80);
+  return { svg: s, lights: [{ x: cx, y: top - 38, seq: a.seq }] };
+}
+function topmark(t, cx, cy) {
+  const up = (y, c) => `<polygon points="${cx-22},${y+18} ${cx+22},${y+18} ${cx},${y-18}" fill="${c}"/>`;
+  const dn = (y, c) => `<polygon points="${cx-22},${y-18} ${cx+22},${y-18} ${cx},${y+18}" fill="${c}"/>`;
+  const b = K.black;
+  switch (t) {
+    case 'nn': return up(cy - 22, b) + up(cy + 22, b);
+    case 'ss': return dn(cy - 22, b) + dn(cy + 22, b);
+    case 'ee': return up(cy - 18, b) + dn(cy + 22, b);
+    case 'ww': return dn(cy - 22, b) + up(cy + 18, b);
+    case 'balls': return `<circle cx="${cx}" cy="${cy-22}" r="17" fill="${b}"/><circle cx="${cx}" cy="${cy+20}" r="17" fill="${b}"/>`;
+    case 'ball': return `<circle cx="${cx}" cy="${cy}" r="20" fill="${K.red}"/>`;
+    case 'x': return `<g stroke="${K.yellow}" stroke-width="9"><line x1="${cx-20}" y1="${cy-20}" x2="${cx+20}" y2="${cy+20}"/><line x1="${cx+20}" y1="${cy-20}" x2="${cx-20}" y2="${cy+20}"/></g>`;
+    case 'plus': return `<g stroke="${K.yellow}" stroke-width="9"><line x1="${cx}" y1="${cy-24}" x2="${cx}" y2="${cy+24}"/><line x1="${cx-20}" y1="${cy}" x2="${cx+20}" y2="${cy}"/></g>`;
+    case 'can': return `<rect x="${cx-18}" y="${cy-24}" width="36" height="46" fill="${K.red}"/>`;
+    case 'cone': return up(cy, K.green);
+  }
+  return '';
+}
+function aidScene(a, pos) {
+  if (!a.kind) return drawBuoy(a);
+  if (a.kind === 'sector') {
+    const cx = 500, wl = 432;
+    let s = `<polygon points="${cx-60},${wl} ${cx+60},${wl} ${cx+40},${wl-20} ${cx-40},${wl-20}" fill="#3b3f46"/>`;
+    s += `<polygon points="${cx-26},${wl-20} ${cx+26},${wl-20} ${cx+17},${wl-230} ${cx-17},${wl-230}" fill="${K.white}"/>`;
+    s += `<rect x="${cx-22}" y="${wl-150}" width="44" height="34" fill="${K.red}"/>`;
+    s += `<rect x="${cx-15}" y="${wl-262}" width="30" height="32" fill="#2a2f38"/><polygon points="${cx-20},${wl-262} ${cx+20},${wl-262} ${cx},${wl-285}" fill="#2a2f38"/>`;
+    const c = sectorColor(pos);
+    return { svg: s, lights: [{ x: cx, y: wl - 246, seq: a.seq.map(([d, v]) => [d, v ? c : 0]) }] };
+  }
+  // linjaloisto: etuloisto lähellä ja alhaalla, takaloisto kaukana ja ylhäällä
+  const off = pos / 100, fx = 500 - off * 260, rx = 500 - off * 90, wl = 432;
+  let s = '';
+  s += `<polygon points="${rx-10},${wl} ${rx+10},${wl} ${rx+6},${wl-250} ${rx-6},${wl-250}" fill="#2a2f38"/><rect x="${rx-22}" y="${wl-300}" width="44" height="50" fill="${K.white}"/><rect x="${rx-5}" y="${wl-300}" width="10" height="50" fill="${K.black}"/>`;
+  s += `<polygon points="${fx-16},${wl} ${fx+16},${wl} ${fx+10},${wl-110} ${fx-10},${wl-110}" fill="#2a2f38"/><rect x="${fx-34}" y="${wl-190}" width="68" height="80" fill="${K.white}"/><rect x="${fx-8}" y="${wl-190}" width="16" height="80" fill="${K.black}"/>`;
+  return { svg: s, lights: [{ x: rx, y: wl - 312, seq: [[2,'w'],[2,0]], r: 6 }, { x: fx, y: wl - 202, seq: Q_SEQ, r: 8 }] };
+}
+
+let aidLights = [];
+function drawAidScene() {
+  const inQuiz = at.mode === 'quiz', a = AIDS[inQuiz ? at.q.i : at.idx];
+  const shown = inQuiz ? at.q.answered : at.reveal;
+  const sc = aidScene(a, at.pos);
+  $('aidBody').innerHTML = sc.svg;
+  $('aidBox').classList.toggle('reveal', shown);
+  aidLights = sc.lights.map((l, k) => ({ ...l, r: l.r || 9, k }));
+  $('aidLights').innerHTML = aidLights.map(l => `<g id="al${l.k}"></g>`).join('');
+  $('aidRefl').innerHTML = aidLights.map(l => `<g id="ar${l.k}"></g>`).join('');
+  $('aidTag').textContent = inQuiz ? `TUNNISTA MERKKI` : `TURVALAITE ${at.idx + 1} / ${AIDS.length}`;
+  $('aidCh').textContent = shown ? a.ch : '';
+  $('aidPosRow').hidden = inQuiz || !a.kind;
+  $('aidReveal').textContent = at.reveal ? 'Piilota merkki' : 'Näytä merkki';
+  let extra = '';
+  if (a.kind === 'sector') {
+    const c = sectorColor(at.pos);
+    extra = `<p class="tip">${c === 'w' ? 'Valkoinen sektori: olet väylällä.' : c === 'r' ? 'Punainen sektori: olet väylän vasemmalla puolella. Ohjaa oikealle, takaisin valkoiseen sektoriin.' : 'Vihreä sektori: olet väylän oikealla puolella. Ohjaa vasemmalle, takaisin valkoiseen sektoriin.'}</p>`;
+  } else if (a.kind === 'leading') {
+    extra = `<p class="tip">${Math.abs(at.pos) < 5 ? 'Valot ovat päällekkäin: olet linjalla.' : at.pos > 0 ? 'Takaloisto näkyy etuloiston oikealla puolella: olet linjan oikealla puolella. Ohjaa vasemmalle.' : 'Takaloisto näkyy etuloiston vasemmalla puolella: olet linjan vasemmalla puolella. Ohjaa oikealle.'}</p>`;
+  }
+  if (inQuiz) {
+    const q = at.q;
+    let verdict = '';
+    if (q.answered) { const ok = q.opts[q.pick].ok; verdict = `<p class="tip"><span class="verdict ${ok ? 'ok' : 'bad'}">${ok ? 'Oikein.' : 'Väärin.'}</span></p>`; }
+    $('aidInfo').innerHTML = q.answered ? aidInfoHtml(a, verdict) : `<p class="eyebrow">Tunnista</p><h2>Mikä merkki?</h2><p class="muted">Katso valon väri ja rytmi. Laske välähdykset ja jakson pituus.</p>`;
+    $('aidAns').innerHTML = q.opts.map((o, k) => {
+      const cls = q.answered ? (o.ok ? 'right' : (q.pick === k ? 'wrong' : '')) : '';
+      return `<button data-k="${k}" class="${cls}" ${q.answered ? 'disabled' : ''}><kbd>${k + 1}</kbd><span>${o.label}</span></button>`;
+    }).join('');
+    $('aidAns').querySelectorAll('button').forEach(b => b.onclick = () => aidAnswer(+b.dataset.k));
+    $('aidNextQ').disabled = !q.answered;
+    $('aidScore').innerHTML = `<span>Oikein <b>${at.score.ok} / ${at.score.n}</b></span>`;
+  } else {
+    $('aidInfo').innerHTML = at.reveal || a.kind ? aidInfoHtml(a, extra) : `<p class="eyebrow">Tunnista</p><h2>Mikä merkki?</h2><p class="muted">Katso valon väri ja rytmi. Paina sitten <b>Näytä merkki</b> (välilyönti).</p>`;
+    $('aidScore').innerHTML = '';
+  }
+  $('aidRhythmCard').hidden = !(shown || a.kind);
+  drawRhythmBar(a);
+}
+function aidInfoHtml(a, extra) {
+  return `<p class="eyebrow">${a.ch}</p><h2>${a.name}</h2><ul>${a.desc.map(d => `<li>${d}</li>`).join('')}</ul>${a.tip ? `<p class="tip">${a.tip}</p>` : ''}${extra}`;
+}
+function drawRhythmBar(a) {
+  const seq = a.kind === 'leading' ? Q_SEQ : aidLights[0] ? aidLights[0].seq : a.seq;
+  const period = seq.reduce((s, x) => s + x[0], 0), W2 = 300, sx = W2 / period;
+  let x = 0, s = `<rect x="0" y="22" width="300" height="20" fill="#111a27" stroke="#1e2a3b"/>`;
+  for (const [d, c] of seq) { if (c) s += `<rect x="${f1(x*sx)}" y="22" width="${f1(Math.max(d*sx, 1.5))}" height="20" fill="${COL[c] || '#fff'}"/>`; x += d; }
+  for (let t = 0; t <= period + 1e-6; t += period > 8 ? 5 : 1) s += `<text x="${f1(Math.min(t*sx, 296))}" y="58" fill="#8392a8" font-size="10" font-family="IBM Plex Mono, monospace" text-anchor="${t === 0 ? 'start' : 'middle'}">${t}s</text>`;
+  s += `<line id="aidHead" x1="0" x2="0" y1="16" y2="48" stroke="#d9a34b" stroke-width="2"/>`;
+  $('aidRhythm').innerHTML = s;
+  $('aidRhythm').dataset.period = period;
+  $('aidRhythmText').textContent = a.kind === 'leading' ? `Kaaviossa etuloiston rytmi: nopea vilkku (Q). Takaloisto on tasavaiheinen (Iso 4s).` : `Jakso ${String(period).replace('.', ',')} s. Kirkas osa tarkoittaa, että valo palaa.`;
+}
+function aidTick() {
+  if (st.view === 'turva') {
+    const t = (performance.now() - at.t0) / 1000;
+    for (const l of aidLights) {
+      const c = seqState(l.seq, t);
+      const g = document.getElementById('al' + l.k), rf = document.getElementById('ar' + l.k);
+      if (!g) continue;
+      const key = c || '';
+      if (g.dataset.c === key) continue;
+      g.dataset.c = key;
+      if (!c) { g.innerHTML = ''; rf.innerHTML = ''; continue; }
+      g.innerHTML = `<circle cx="${l.x}" cy="${l.y}" r="${l.r*3.4}" fill="url(#glow-${c})"/><circle cx="${l.x}" cy="${l.y}" r="${l.r}" fill="${COL[c]}"/><circle cx="${l.x}" cy="${l.y}" r="${l.r*.42}" fill="#fff" opacity=".75"/>`;
+      const len = Math.min((432 - l.y) * .9, 126);
+      rf.innerHTML = `<rect x="${l.x - l.r*.55}" y="434" width="${l.r*1.1}" height="${len}" fill="url(#refl-${c})"/>`;
+    }
+    const head = document.getElementById('aidHead'), per = +$('aidRhythm').dataset.period;
+    if (head && per) { const hx = ((t % per) / per) * 300; head.setAttribute('x1', hx.toFixed(1)); head.setAttribute('x2', hx.toFixed(1)); }
+  }
+}
+setInterval(aidTick, 40);
+
+function fillAidSelect() {
+  $('aidSel').innerHTML = AIDS.map((a, i) => `<option value="${i}">${i + 1}. ${at.reveal || a.kind ? a.short : 'Turvalaite ' + (i + 1)}</option>`).join('');
+  $('aidSel').value = at.idx;
+}
+function setAid(i, keep) {
+  at.idx = (i + AIDS.length) % AIDS.length; store.set('aidIdx', at.idx);
+  if (!keep) at.reveal = false;
+  at.pos = AIDS[at.idx].kind === 'sector' ? -40 : AIDS[at.idx].kind === 'leading' ? 35 : 0;
+  $('aidPos').value = at.pos; at.t0 = performance.now();
+  fillAidSelect(); drawAidScene();
+}
+function newAidQ() {
+  const i = BUOYS[rnd(BUOYS.length)];
+  const others = shuffle(BUOYS.filter(j => j !== i)).slice(0, 3);
+  at.q = { i, answered:false, opts: shuffle([i, ...others]).map(j => ({ label: AIDS[j].short, ok: j === i })) };
+  at.t0 = performance.now(); drawAidScene();
+}
+function aidAnswer(k) {
+  const q = at.q; if (q.answered) return;
+  q.answered = true; q.pick = k; at.score.n++; if (q.opts[k].ok) at.score.ok++;
+  drawAidScene(); $('aidNextQ').focus();
+}
+function setAidMode(m) {
+  at.mode = m;
+  document.querySelectorAll('#aidSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.m === m)));
+  $('aidLearn').hidden = m !== 'learn'; $('aidQuiz').hidden = m !== 'quiz';
+  if (m === 'quiz') { if (!at.q) newAidQ(); else drawAidScene(); } else { fillAidSelect(); drawAidScene(); }
+}
+document.querySelectorAll('#aidSeg button').forEach(b => b.onclick = () => setAidMode(b.dataset.m));
+$('aidPrev').onclick = () => setAid(at.idx - 1);
+$('aidNext').onclick = () => setAid(at.idx + 1);
+$('aidSel').onchange = () => setAid(+$('aidSel').value, true);
+$('aidReveal').onclick = () => { at.reveal = !at.reveal; fillAidSelect(); drawAidScene(); };
+$('aidPos').oninput = () => { at.pos = +$('aidPos').value; drawAidScene(); };
+$('aidNextQ').onclick = newAidQ;
+
 /* ---------- views ---------- */
+const VIEWS = ['harjoittelu','tehtavat','tentti','turva','ohje'];
 function setView(v) {
   st.view = v;
   document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.view === v)));
-  $('view-main').hidden = v === 'ohje';
+  $('view-main').hidden = v === 'ohje' || v === 'turva';
+  $('view-turva').hidden = v !== 'turva';
   $('view-ohje').hidden = v !== 'ohje';
   $('practiceControls').hidden = v !== 'harjoittelu';
   $('quizControls').hidden = v !== 'tehtavat';
+  $('examControls').hidden = v !== 'tentti';
   stageBox.classList.toggle('can-drag', v === 'harjoittelu');
   sectorEl.classList.toggle('live', v === 'harjoittelu');
   $('sectorHint').hidden = v !== 'harjoittelu';
   if (v === 'harjoittelu') { fillSelect(); drawPractice(); }
   if (v === 'tehtavat') { if (!st.q) newQuestion(); else drawQuiz(); }
+  if (v === 'tentti') drawExam();
+  if (v === 'turva') setAidMode(at.mode);
   if (location.hash.slice(1) !== v) history.replaceState(null, '', '#' + v);
 }
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => setView(b.dataset.view));
@@ -820,20 +1249,32 @@ document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => setView
 document.addEventListener('keydown', (e) => {
   if (e.target.closest('select,input[type="range"]') && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const onBtn = e.target.closest('button');
   if (st.view === 'harjoittelu') {
     if (e.key === 'ArrowRight') { setIdx(st.idx + 1); e.preventDefault(); }
     else if (e.key === 'ArrowLeft') { setIdx(st.idx - 1); e.preventDefault(); }
-    else if (e.key === ' ' && !e.target.closest('button')) { setReveal(!st.reveal); e.preventDefault(); }
+    else if (e.key === ' ' && !onBtn) { setReveal(!st.reveal); e.preventDefault(); }
     else if (e.key === 'a' || e.key === 'A') setAngle(st.th - 15);
     else if (e.key === 'd' || e.key === 'D') setAngle(st.th + 15);
     else if (e.key === 'r' || e.key === 'R') $('randBtn').click();
   } else if (st.view === 'tehtavat') {
     if (/^[1-4]$/.test(e.key) && st.q && !st.q.answered) answer(+e.key - 1);
-    else if (e.key === 'Enter' && st.q && st.q.answered && !e.target.closest('button')) newQuestion();
+    else if (e.key === 'Enter' && st.q && st.q.answered && !onBtn) newQuestion();
+  } else if (st.view === 'tentti' && st.exam && !st.exam.done) {
+    if (/^[1-4]$/.test(e.key)) examPick(+e.key - 1);
+    else if ((e.key === 'Enter' && !onBtn) || e.key === 'ArrowRight') { $('examNext').click(); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft') { $('examPrev').click(); e.preventDefault(); }
+  } else if (st.view === 'turva') {
+    if (at.mode === 'learn') {
+      if (e.key === 'ArrowRight') { setAid(at.idx + 1); e.preventDefault(); }
+      else if (e.key === 'ArrowLeft') { setAid(at.idx - 1); e.preventDefault(); }
+      else if (e.key === ' ' && !onBtn) { $('aidReveal').click(); e.preventDefault(); }
+    } else if (/^[1-4]$/.test(e.key) && at.q && !at.q.answered) aidAnswer(+e.key - 1);
+    else if (e.key === 'Enter' && at.q && at.q.answered && !onBtn) newAidQ();
   }
 });
 
 const initial = location.hash.slice(1);
-setView(['harjoittelu','tehtavat','ohje'].includes(initial) ? initial : 'harjoittelu');
+setView(VIEWS.includes(initial) ? initial : 'harjoittelu');
 })();
 </script>

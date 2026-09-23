@@ -4,6 +4,8 @@ Selaimessa toimiva harjoitusohjelma, jolla opetellaan tunnistamaan alukset niide
 
 - **Harjoittelu**: sovelluksessa on 29 alustyyppiä. Alusta voi katsoa mistä kulmasta tahansa (kulmaa käännetään painikkeilla, liukusäätimellä tai vetämällä kuvaa). Toiminto "Näytä alus" paljastaa aluksen rungon ja valojen selitykset.
 - **Tehtävät**: tehtävätyypit ovat "Mikä alus?" ja "Mistä suunnasta?". Mukaan saa halutessaan myös vinot kulmat. Pisteet tallentuvat selaimeen.
+- **Tentti**: 10 kysymystä kulkuvaloista (7 × "Mikä alus?" ja 3 × "Mistä suunnasta?"). Oikeat vastaukset näytetään vasta lopussa, ja hyväksytty raja on 8/10. Rajan voi muuttaa koodin vakiosta `EXAM_PASS`.
+- **Turvalaitteet**: kardinaalimerkit, erillisen vaaran merkki, turvavesimerkki, erikoismerkki, sivumerkit ja uuden vaaran merkki vilkkuvat oikeilla rytmeillään. Mukana ovat myös sektoriloisto ja linjaloisto, joissa venettä siirretään liukusäätimellä. Osiossa voi harjoitella tai tehdä tunnistustehtäviä.
 - Alukset piirretään koodilla 3D-mallina. Valojen näkyvyys lasketaan sääntöjen sektoreista: mastovalo 225°, sivuvalot 112,5° ja perä- ja hinausvalo 135°.
 
 Ohjelma on yksi HTML-tiedosto (`index.html`). Siinä ei ole kirjastoja eikä kuvatiedostoja, eikä se tarvitse palvelinta. Tiedoston voi avata sellaisenaan selaimessa.
