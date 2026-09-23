@@ -166,6 +166,7 @@ select{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;
 #simBox .sky-dusk,#simBox .water-dusk{transition:opacity .18s ease}
 #simBox.reveal #simLand{fill:#1f2922}
 #simBox.reveal #simTrafSil{fill:#11151c}
+.enc-q{font:700 16px var(--sans);fill:#d9a34b}
 .sim-chip.peek{color:#ffd9a0;border-color:#8a6a35;background:rgba(45,34,15,.8)}
 #simPeek{touch-action:none;user-select:none;-webkit-user-select:none}
 .sim-enc{margin-top:12px;background:var(--panel);border:1px solid var(--brass);border-radius:12px;padding:12px 14px;display:grid;gap:8px;scroll-margin:16px}
@@ -2338,6 +2339,20 @@ const SIM = (() => {
         lamps += `<text x="${f1(r[0])}" y="${f1(Math.min(H - 4, r[1] + 30))}" class="kn-lbl main" text-anchor="middle">${T.def.name}</text>`;
       }
     }
+    // kysyttävän aluksen merkintä: kulmasulkeet näkymässä tai nuoli reunalla
+    if (s.enc && s.enc.T) {
+      const T = s.enc.T, d = Math.hypot(T.x - s.x, T.y - s.y), rel = n180(brg(s.x, s.y, T.x, T.y) - norm(s.hdg + s.look));
+      if (Math.abs(rel) <= FOV / 2) {
+        const zTop = Math.max(...T.m.lights.map(l => l.p[2])) * T.def.sc;
+        const top = proj(T.x, T.y, zTop), bot = proj(T.x, T.y, 0), cx = top[0];
+        const hw = Math.max(16, Math.min(70, 9000 / d)), y0 = top[1] - 12, y1 = bot[1] + 8, k = 9;
+        const br = `M${f1(cx - hw)},${f1(y0 + k)} V${f1(y0)} H${f1(cx - hw + k)} M${f1(cx + hw - k)},${f1(y0)} H${f1(cx + hw)} V${f1(y0 + k)} M${f1(cx + hw)},${f1(y1 - k)} V${f1(y1)} H${f1(cx + hw - k)} M${f1(cx - hw + k)},${f1(y1)} H${f1(cx - hw)} V${f1(y1 - k)}`;
+        lamps += `<path d="${br}" fill="none" stroke="#d9a34b" stroke-width="2"/><text x="${f1(cx)}" y="${f1(y0 - 6)}" class="enc-q" text-anchor="middle">${s.enc.step > 1 ? T.def.name : '?'}</text>`;
+      } else {
+        const right = rel > 0, x = right ? 985 : 15;
+        lamps += `<text x="${x}" y="${HY - 20}" class="enc-q" text-anchor="${right ? 'end' : 'start'}">${right ? 'alus ▶' : '◀ alus'}</text>`;
+      }
+    }
     $('simTrafSil').innerHTML = sil; $('simTraf').innerHTML = lamps; $('simTrafRefl').innerHTML = refl;
   }
   function drawAis() {
@@ -2394,16 +2409,17 @@ const SIM = (() => {
     const a = norm(brg(T.x, T.y, s.x, s.y) - T.hdg), sig = signature(T.vi, a);
     const pool = shuffle(V.map((_, j) => j).filter(j => j !== T.vi && signature(j, a) !== sig)).slice(0, 3);
     s.enc = { T, step:1, opts: shuffle([T.vi, ...pool]).map(j => ({ label: V[j].short, ok: j === T.vi })), cls: classify(T) };
-    s.paused = true; encUi();
+    s.paused = true; lookAt(T); encUi();
   }
   function encUi() {
     const e = s.enc, box = $('simEnc');
     if (!e) { box.hidden = true; return; }
     box.hidden = false;
     const c = cpaOf(e.T);
-    let h = `<div class="row" style="justify-content:space-between"><p class="eyebrow" style="margin:0">Lähestymistilanne · ${Math.round(c.d)} m · lähin ohitus noin ${Math.round(c.cpa)} m ${Math.round(c.t / 60 * 10) / 10 > 0 ? `${(c.t / 60).toFixed(1).replace('.', ',')} min päästä` : ''}</p><div class="row"><button class="btn" id="simLookAt">Katso alukseen</button><button class="btn" id="simLookFwd">Katso eteen</button></div></div>`;
+    const eb = brg(s.x, s.y, e.T.x, e.T.y), er = n180(eb - s.hdg);
+    let h = `<div class="row" style="justify-content:space-between"><p class="eyebrow" style="margin:0">Lähestymistilanne · alus merkitty kuvaan · suuntima ${String(Math.round(eb)).padStart(3, '0')}° (${Math.abs(Math.round(er))}° ${er >= 0 ? 'oikealla' : 'vasemmalla'}) · ${Math.round(c.d)} m · lähin ohitus noin ${Math.round(c.cpa)} m ${Math.round(c.t / 60 * 10) / 10 > 0 ? `${(c.t / 60).toFixed(1).replace('.', ',')} min päästä` : ''}</p><div class="row"><button class="btn" id="simLookAt">Katso alukseen</button><button class="btn" id="simLookFwd">Katso eteen</button></div></div>`;
     if (e.step === 1) {
-      h += `<p class="question">Mikä alus lähestyy? Katso sen valoja.</p><div class="answers">${e.opts.map((o, k) => `<button data-k="${k}"><kbd>${k + 1}</kbd><span>${o.label}</span></button>`).join('')}</div>`;
+      h += `<p class="question">Mikä alus lähestyy? Katso merkityn aluksen valoja.</p><div class="answers">${e.opts.map((o, k) => `<button data-k="${k}"><kbd>${k + 1}</kbd><span>${o.label}</span></button>`).join('')}</div>`;
     } else {
       const ok1 = e.opts[e.pick1].ok;
       h += `<p class="${ok1 ? 'verdict ok' : 'verdict bad'}" style="margin:0">${ok1 ? 'Oikein' : 'Väärin'}: ${V[e.T.vi].name}. ${V[e.T.vi].desc.slice(0, 2).join('. ')}.</p>`;
