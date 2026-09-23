@@ -6,6 +6,7 @@ Selaimessa toimiva harjoitusohjelma, jolla opetellaan tunnistamaan alukset niide
 - **Tehtävät**: tehtävätyypit ovat "Mikä alus?" ja "Mistä suunnasta?". Mukaan saa halutessaan myös vinot kulmat. Pisteet tallentuvat selaimeen.
 - **Tentti**: 10 kysymystä kulkuvaloista (7 × "Mikä alus?" ja 3 × "Mistä suunnasta?"). Oikeat vastaukset näytetään vasta lopussa, ja hyväksytty raja on 8/10. Rajan voi muuttaa koodin vakiosta `EXAM_PASS`.
 - **Turvalaitteet**: kardinaalimerkit, erillisen vaaran merkki, turvavesimerkki, erikoismerkki, sivumerkit ja uuden vaaran merkki vilkkuvat oikeilla rytmeillään. Mukana ovat myös sektoriloisto ja linjaloisto, joissa venettä siirretään liukusäätimellä. Osiossa voi harjoitella tai tehdä tunnistustehtäviä.
+- **Sektoriloisto**: osiossa on Koirakarin sektoriloisto (Fl WRG 3 s) todellisilla tiedoilla. Yönäkymässä valot näkyvät veneestä, jonka silmän korkeus on säädettävä (oletus 2,5 m). Kartalla näkyvät sektorit, väylät, saaret ja merkit merikarttasymboleina. Käyttötavat ovat "Vapaa" (venettä vedetään kartalla), "Aja väylää" (Lintupaaden ja Rysäkarin väylät) ja "Tehtävä" ("Missä olen?" ja "Etsi Koirakari"). Aineiston voi päivittää ajamalla `python3 tools/koirakari.py` ja sen jälkeen `./build.sh`.
 - Alukset piirretään koodilla 3D-mallina. Valojen näkyvyys lasketaan sääntöjen sektoreista: mastovalo 225°, sivuvalot 112,5° ja perä- ja hinausvalo 135°.
 
 Ohjelma on yksi HTML-tiedosto (`index.html`). Siinä ei ole kirjastoja eikä kuvatiedostoja, eikä se tarvitse palvelinta. Tiedoston voi avata sellaisenaan selaimessa.
@@ -33,4 +34,4 @@ Alustyypit ovat taulukossa `V`. Jokaisella tyypillä on nimi, valojen kuvaus, vi
 
 ## Lähde ja vastuu
 
-Sisältö perustuu Pekka Jylhän (merenkulun asiantuntija) ja Tapio Säypön (toteutus) Kulkuvalot-harjoitussivustoon (2001–2004). Kansalliset erityisvalot (jäänmurtaja, viranomaisalus ja lossi) noudattavat alkuperäistä aineistoa. Tarkista ajantasaiset määräykset (COLREG ja Traficom). Ohjelma on harjoitteluväline, eikä sitä ole tarkoitettu navigointiin.
+Koirakarin aineisto on peräisin Väylävirastolta (avoin rajapinta, CC BY 4.0), ja rantaviivat ovat © OpenStreetMap-tekijät (ODbL). Kulkuvalojen sisältö perustuu Pekka Jylhän (merenkulun asiantuntija) ja Tapio Säypön (toteutus) Kulkuvalot-harjoitussivustoon (2001–2004). Kansalliset erityisvalot (jäänmurtaja, viranomaisalus ja lossi) noudattavat alkuperäistä aineistoa. Tarkista ajantasaiset määräykset (COLREG ja Traficom). Ohjelma on harjoitteluväline, eikä sitä ole tarkoitettu navigointiin.
