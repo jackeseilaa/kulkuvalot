@@ -160,6 +160,9 @@ select{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;
 #simBox.reveal #simLand{fill:#1f2922}
 #simBox.reveal #simTrafSil{fill:#11151c}
 .enc-q{font:700 16px var(--sans);fill:#d9a34b}
+.sig-row{display:flex;gap:6px;align-items:stretch}
+.sig-row>button:first-child{flex:1}
+.sig-play{flex:0 0 44px;border:1px solid var(--line2);background:var(--panel2);border-radius:8px;cursor:pointer;color:var(--brass);font-size:16px}
 .sim-chip.peek{color:#ffd9a0;border-color:#8a6a35;background:rgba(45,34,15,.8)}
 #simPeek{touch-action:none;user-select:none;-webkit-user-select:none}
 .sim-enc{margin-top:12px;background:var(--panel);border:1px solid var(--brass);border-radius:12px;padding:12px 14px;display:grid;gap:8px;scroll-margin:16px}
@@ -1689,7 +1692,7 @@ function kRouteUi() {
   let dragging = false;
   const toLocal = (e) => { const p = svg().createSVGPoint(); p.x = e.clientX; p.y = e.clientY; const m = svg().getScreenCTM().inverse(); const q = p.matrixTransform(m); return [q.x, -q.y]; };
   document.addEventListener('pointerdown', (e) => {
-    if (st.view !== 'koira' || ks.mode !== 'free' || !e.target.closest('#kChart')) return;
+    if (st.view !== 'koira' || ks.mode !== 'free' || !(e.target.closest ? e.target : document.body).closest('#kChart')) return;
     dragging = true; const [x, y] = toLocal(e); kSetBoat(x, y); e.preventDefault();
   });
   document.addEventListener('pointermove', (e) => { if (dragging) { const [x, y] = toLocal(e); kSetBoat(x, y); } });
@@ -1775,7 +1778,7 @@ function kAnswer(k, no) {
 }
 $('kLights').addEventListener('click', (e) => {
   if (ks.mode !== 'quiz' || ks.qType !== 'find' || !ks.q || ks.q.answered) return;
-  const g = e.target.closest('[data-no]'); if (!g) return;
+  const g = (e.target.closest ? e.target : document.body).closest('[data-no]'); if (!g) return;
   kAnswer(null, g.dataset.no);
 });
 document.querySelectorAll('#kSeg button').forEach(b => b.onclick = () => kSetMode(b.dataset.m));
@@ -1914,11 +1917,11 @@ const SIM = (() => {
   ];
   let MISSION = MISSIONS[Math.max(0, MISSIONS.findIndex(m => m.id === store.get('simMission', 'lintu')))];
   const s = { zoom:'mid', x:0, y:0, hdg:0, v:0, rud:0, thr:0, rot:0, t:0, outT:0, groundings:0, cp:0, track:[], paused:false, aground:false, done:false,
-              scale:5, look:0, peek:false, peeks:0, names:false, chart:true, enc:null, askEnc:true, ais:true, idOk:0, idN:0, decOk:0, decN:0, collisions:0, last:performance.now(), t0:performance.now(), lastCast:null, cols:[], vis:[], built:false, keys:{} };
+              scale:5, look:0, peek:false, peeks:0, names:false, chart:true, enc:null, askEnc:true, ais:true, idOk:0, idN:0, decOk:0, decN:0, sigOk:0, sigN:0, collisions:0, last:performance.now(), t0:performance.now(), lastCast:null, cols:[], vis:[], built:false, keys:{} };
 
   function reset() {
     Object.assign(s, { x:MISSION.start.x, y:MISSION.start.y, hdg:MISSION.start.hdg, v:0, rud:0, thr:.6, rot:0, t:0, outT:0, groundings:0, cp:0,
-      track:[[MISSION.start.x, MISSION.start.y]], aground:false, done:false, paused:false, lastCast:null, look:0, peek:false, peeks:0, enc:null, idOk:0, idN:0, decOk:0, decN:0, collisions:0 });
+      track:[[MISSION.start.x, MISSION.start.y]], aground:false, done:false, paused:false, lastCast:null, look:0, peek:false, peeks:0, enc:null, idOk:0, idN:0, decOk:0, decN:0, sigOk:0, sigN:0, collisions:0 });
     trafficReset(); $('simEnc').hidden = true;
     s.v = s.thr * 7 * KN;
     $('simCps').innerHTML = cpsSvg();
@@ -1970,7 +1973,7 @@ const SIM = (() => {
     const best = store.get('simBest-' + MISSION.id, null);
     if (!best || score(res) > score(best)) store.set('simBest-' + MISSION.id, res);
     if (!s.peeks) { const bc = store.get('simClean-' + MISSION.id, null); if (!bc || score(res) > score(bc)) store.set('simClean-' + MISSION.id, res); }
-    banner('MAALISSA', `Aika ${mmss(s.t)} · väylän ulkopuolella ${mmss(s.outT)} · karilleajoja ${s.groundings} · törmäyksiä ${s.collisions} · kurkistuksia ${s.peeks}${s.idN ? ` · tunnistukset ${s.idOk}/${s.idN} · väistöratkaisut ${s.decOk}/${s.decN}` : ''}`, false, true);
+    banner('MAALISSA', `Aika ${mmss(s.t)} · väylän ulkopuolella ${mmss(s.outT)} · karilleajoja ${s.groundings} · törmäyksiä ${s.collisions} · kurkistuksia ${s.peeks}${s.idN ? ` · tunnistukset ${s.idOk}/${s.idN} · väistöratkaisut ${s.decOk}/${s.decN} · äänimerkit ${s.sigOk}/${s.sigN}` : ''}`, false, true);
     info();
   }
   const score = (r) => 1000 - r.t / 6 - r.out * 2 - r.g * 150;
@@ -2163,7 +2166,7 @@ const SIM = (() => {
     const cp = MISSION.cps[s.cp], best = store.get('simBest-' + MISSION.id, null);
     $('simInfo').innerHTML = `<p class="eyebrow">Tehtävä · ${MISSION.name}</p>
       <ol class="sim-steps">${MISSION.cps.map((c, i) => `<li class="${i < s.cp ? 'done' : i === s.cp ? 'cur' : ''}"><b>${c.name}</b>${i === s.cp && !s.done ? `<span>${c.hint}</span>` : ''}</li>`).join('')}</ol>
-      ${s.idN ? `<p class="sector-hint">Lähestymistilanteet: tunnistit ${s.idOk}/${s.idN} alusta, väistöratkaisuja oikein ${s.decOk}/${s.decN}${s.collisions ? `, yhteentörmäyksiä ${s.collisions}` : ''}.</p>` : ''}
+      ${s.idN ? `<p class="sector-hint">Lähestymistilanteet: tunnistit ${s.idOk}/${s.idN} alusta, väistöratkaisuja oikein ${s.decOk}/${s.decN}, äänimerkkejä oikein ${s.sigOk}/${s.sigN}${s.collisions ? `, yhteentörmäyksiä ${s.collisions}` : ''}.</p>` : ''}
       ${s.done ? `<p class="tip"><span class="verdict ok">Maalissa.</span> Aika ${mmss(s.t)}, väylän ulkopuolella ${mmss(s.outT)}, karilleajoja ${s.groundings}.</p>` : ''}
       <p class="sector-hint">Kurkistuksia tällä ajolla: ${s.peeks}${s.peeks ? '' : '. Ajat pelkkien valojen varassa'}.</p>
       ${(() => { const bc = store.get('simClean-' + MISSION.id, null); return bc ? `<p class="sector-hint">Paras ilman kurkistuksia: aika ${mmss(bc.t)}, väylän ulkopuolella ${mmss(bc.out)}, karilleajoja ${bc.g}</p>` : ''; })()}
@@ -2195,12 +2198,12 @@ const SIM = (() => {
   function setLook(v) { s.look = Math.max(-180, Math.min(180, v)); castView(true); drawTape(); hud(); }
   function lookAt(T) { setLook(n180(brg(s.x, s.y, T.x, T.y) - s.hdg)); }
   function key(e) {
-    if (st.view !== 'sim' || e.metaKey || e.ctrlKey || e.altKey || e.target.closest('input,select')) return false;
+    if (st.view !== 'sim' || e.metaKey || e.ctrlKey || e.altKey || (e.target.closest ? e.target : document.body).closest('input,select')) return false;
     if (s.enc && e.key === ' ') { if (!e.repeat) setPeek(true); e.preventDefault(); return true; }
     if (s.enc && /^[qQeEwW]$/.test(e.key)) { setLook(s.look + ({ q:-10, e:10 })[e.key.toLowerCase()] || (e.key.toLowerCase() === 'w' ? -s.look : 0)); e.preventDefault(); return true; }
     if (s.enc) {
-      if (/^[1-4]$/.test(e.key) && s.enc.step < 3) { encAnswer(+e.key - 1); e.preventDefault(); return true; }
-      if (e.key === 'Enter' && s.enc.step === 3) { encDone(); e.preventDefault(); return true; }
+      if (/^[1-4]$/.test(e.key) && s.enc.step < 4) { encAnswer(+e.key - 1); e.preventDefault(); return true; }
+      if (e.key === 'Enter' && s.enc.step === 4) { encDone(); e.preventDefault(); return true; }
       return false;
     }
     const m = { ArrowLeft:'left', ArrowRight:'right', ArrowUp:'up', ArrowDown:'down', c:'center', C:'center', '0':'center' }[e.key];
@@ -2232,7 +2235,7 @@ const SIM = (() => {
       path:[[60.1000,24.9150],[60.1060,24.9300],[60.0985,24.9420],[60.0950,24.9250]] },
     { id:'kustaa', name:'Konealus', type:'kone-alle50', sc:1, kn:8, pp:true, t0:.55,
       path:[[60.15015,25.00020],[60.14819,24.99964],[60.14080,24.99308],[60.13458,24.99069],[60.13073,24.98835],[60.12991,24.98786],[60.11954,24.98432]] },
-    { id:'pilot', name:'Luotsivene', type:'luotsi', sc:1, kn:10, pp:true, t0:.3,
+    { id:'pilot', name:'Luotsivene', type:'luotsi', sc:1, kn:10, pp:true, t0:.3, sigOvertake:true,
       path:[[60.14166,24.94631],[60.14271,24.95264],[60.13957,24.97113],[60.13832,24.97854],[60.13668,24.98021],[60.13061,24.98828],[60.12022,24.98455]] },
     { id:'tri', name:'Purjevene', type:'purje-3v', sc:1, kn:4.5, pp:true, t0:.6,
       path:[[60.13096,24.94380],[60.14087,24.92897],[60.14159,24.92777]] },
@@ -2402,6 +2405,41 @@ const SIM = (() => {
     s.enc = { T, step:1, opts: shuffle([T.vi, ...pool]).map(j => ({ label: V[j].short, ok: j === T.vi })), cls: classify(T) };
     s.paused = true; lookAt(T); encUi();
   }
+  // --- äänimerkit (sääntö 34): lyhyt noin 1 s, pitkä 4–6 s (tässä lyhennetty 3 s) ---
+  let AC = null, hornNodes = [];
+  function horn(code) {
+    try {
+      AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+      if (AC.state === 'suspended') AC.resume();
+      hornNodes.forEach(n => { try { n.stop(); } catch {} }); hornNodes = [];
+      if (!code) return;
+      const master = AC.createGain(); master.gain.value = .16;
+      const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
+      lp.connect(master); master.connect(AC.destination);
+      let t = AC.currentTime + .05;
+      for (const ch of code) {
+        const dur = ch === 'l' ? 3 : .9, g = AC.createGain();
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + .06); g.gain.setValueAtTime(1, t + dur - .08); g.gain.linearRampToValueAtTime(0, t + dur);
+        g.connect(lp);
+        for (const f of [165, 247]) { const o = AC.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.connect(g); o.start(t); o.stop(t + dur + .02); hornNodes.push(o); }
+        t += dur + .8;
+      }
+    } catch {}
+  }
+  const SIGDESC = { s:'yksi lyhyt', ss:'kaksi lyhyttä', sss:'kolme lyhyttä', sssss:'viisi lyhyttä', lls:'kaksi pitkää ja yksi lyhyt', llss:'kaksi pitkää ja kaksi lyhyttä', lsls:'pitkä, lyhyt, pitkä, lyhyt' };
+  const SIGQ = {
+    stbd: { q:'Väistät kääntymällä oikealle. Mikä äänimerkki annetaan?',
+      opts:[['s', 'Yksi lyhyt: käännän oikealle', 1], ['ss', 'Kaksi lyhyttä: käännän vasemmalle'], ['sss', 'Kolme lyhyttä: koneet käyvät taaksepäin'], ['sssss', 'Vähintään viisi lyhyttä: epäilen aikeitasi']],
+      rule:'Sääntö 34 a: kun alukset näkevät toisensa ja konealus muuttaa suuntaa, se antaa äänimerkin. Yksi lyhyt tarkoittaa, että käännän oikealle, kaksi lyhyttä, että käännän vasemmalle, ja kolme lyhyttä, että koneet käyvät taaksepäin. Yöllä äänimerkkiä voi täydentää samanrytmisillä valomerkeillä.' },
+    stand: { q:'Pidät suuntasi ja nopeutesi. Mikä äänimerkki kuuluu tilanteeseen?',
+      opts:[['', 'Ei merkkiä. Jos epäilen, väistääkö toinen, annan vähintään viisi lyhyttä', 1], ['s', 'Yksi lyhyt'], ['lls', 'Kaksi pitkää ja yksi lyhyt'], ['sss', 'Kolme lyhyttä']],
+      rule:'Sääntö 34 d: suunnan pitävä alus ei anna äänimerkkiä. Jos se epäilee, toimiiko toinen riittävästi, se antaa vähintään viisi lyhyttä ja nopeaa merkkiä.' },
+    ot: { q:'Luotsivene antaa äänimerkin. Kuuntele. Mitä se tarkoittaa ja miten vastaat?', play:'lls',
+      opts:[['lsls', 'Se aikoo ohittaa oikealta puoleltani. Jos hyväksyn, vastaan pitkä, lyhyt, pitkä, lyhyt', 1], ['s', 'Se kääntyy oikealle. En vastaa'], ['sssss', 'Se aikoo ohittaa vasemmalta puoleltani. Vastaan viisi lyhyttä'], ['ss', 'Se on ohjailukyvytön. Väistän']],
+      rule:'Sääntö 9 e ja 34 c: kapealla väylällä ohittava ilmoittaa aikeensa. Kaksi pitkää ja yksi lyhyt tarkoittaa, että ohitan oikealta puoleltasi, ja kaksi pitkää ja kaksi lyhyttä, että ohitan vasemmalta puoleltasi. Ohitettava vastaa suostumuksensa pitkä, lyhyt, pitkä, lyhyt ja antaa tilaa. Jos se epäilee, se antaa vähintään viisi lyhyttä. Ohittava väistää silti koko ohituksen ajan.' },
+  };
+  function sigCase(e) { return e.T.def.sigOvertake && e.cls.ans === 'stand' ? 'ot' : (e.cls.ans === 'stand' ? 'stand' : 'stbd'); }
+  const ansList = (opts) => `<div class="answers">${opts.map((o, k) => `<button data-k="${k}"><kbd>${k + 1}</kbd><span>${o.label}</span></button>`).join('')}</div>`;
   function encUi() {
     const e = s.enc, box = $('simEnc');
     if (!e) { box.hidden = true; return; }
@@ -2410,18 +2448,30 @@ const SIM = (() => {
     const eb = brg(s.x, s.y, e.T.x, e.T.y), er = n180(eb - s.hdg);
     let h = `<div class="row" style="justify-content:space-between"><p class="eyebrow" style="margin:0">Lähestymistilanne · alus merkitty kuvaan · suuntima ${String(Math.round(eb)).padStart(3, '0')}° (${Math.abs(Math.round(er))}° ${er >= 0 ? 'oikealla' : 'vasemmalla'}) · ${Math.round(c.d)} m · lähin ohitus noin ${Math.round(c.cpa)} m ${Math.round(c.t / 60 * 10) / 10 > 0 ? `${(c.t / 60).toFixed(1).replace('.', ',')} min päästä` : ''}</p><div class="row"><button class="btn" id="simLookAt">Katso alukseen</button><button class="btn" id="simLookFwd">Katso eteen</button></div></div>`;
     if (e.step === 1) {
-      h += `<p class="question">Mikä alus lähestyy? Katso merkityn aluksen valoja.</p><div class="answers">${e.opts.map((o, k) => `<button data-k="${k}"><kbd>${k + 1}</kbd><span>${o.label}</span></button>`).join('')}</div>`;
+      h += `<p class="question">1/3 · Mikä alus lähestyy? Katso merkityn aluksen valoja.</p>` + ansList(e.opts);
     } else {
       const ok1 = e.opts[e.pick1].ok;
       h += `<p class="${ok1 ? 'verdict ok' : 'verdict bad'}" style="margin:0">${ok1 ? 'Oikein' : 'Väärin'}: ${V[e.T.vi].name}. ${V[e.T.vi].desc.slice(0, 2).join('. ')}.</p>`;
-      if (e.step === 2) h += `<p class="question" style="margin-top:8px">Kuka väistää ja mitä teet?</p><div class="answers">${DEC.map((o, k) => `<button data-k="${k}"><kbd>${k + 1}</kbd><span>${o.label}</span></button>`).join('')}</div>`;
+      if (e.step === 2) h += `<p class="question" style="margin-top:8px">2/3 · Kuka väistää ja mitä teet?</p>` + ansList(DEC);
       else {
         const ok2 = DEC[e.pick2].k === e.cls.ans;
-        h += `<p class="${ok2 ? 'verdict ok' : 'verdict bad'}" style="margin:8px 0 0">${ok2 ? 'Oikea ratkaisu.' : 'Ei oikein.'} Oikea toimintatapa: ${DEC.find(o => o.k === e.cls.ans).label.toLowerCase()}.</p><p style="margin:4px 0 0;color:#b7c2d2">${e.cls.rule}</p><div class="row" style="margin-top:10px"><button class="btn primary" id="simEncGo">Jatka ajoa</button><span class="sector-hint" style="margin:0 0 0 8px">Pidä välilyöntiä pohjassa, niin näet aluksen hämäränäkymässä.</span></div>`;
+        h += `<p class="${ok2 ? 'verdict ok' : 'verdict bad'}" style="margin:8px 0 0">${ok2 ? 'Oikea ratkaisu.' : 'Ei oikein.'} Oikea toimintatapa: ${DEC.find(o => o.k === e.cls.ans).label.toLowerCase()}.</p><p style="margin:4px 0 0;color:#b7c2d2">${e.cls.rule}</p>`;
+        const q = SIGQ[e.sig];
+        if (e.step === 3) {
+          h += `<p class="question" style="margin-top:10px">3/3 · ${q.q}</p>${q.play ? `<div class="row"><button class="btn" id="simSigHear">▶ Kuuntele luotsiveneen merkki uudelleen</button></div>` : ''}` +
+            `<div class="answers">${e.sopts.map((o, k) => `<div class="sig-row"><button data-k="${k}"><kbd>${k + 1}</kbd><span>${o.label}</span></button>${o.code ? `<button class="sig-play" data-c="${o.code}" title="Kuuntele: ${SIGDESC[o.code]}" aria-label="Kuuntele merkki">▶</button>` : ''}</div>`).join('')}</div>`;
+        } else {
+          const ok3 = e.sopts[e.pick3].ok, right = e.sopts.find(o => o.ok);
+          h += `<p class="${ok3 ? 'verdict ok' : 'verdict bad'}" style="margin:10px 0 0">${ok3 ? 'Oikea äänimerkki.' : 'Ei oikein.'} Oikein: ${right.label.toLowerCase()}.</p><p style="margin:4px 0 0;color:#b7c2d2">${q.rule}</p>` +
+            `<div class="row" style="margin-top:10px"><button class="btn primary" id="simEncGo">Jatka ajoa</button>${right.code ? `<button class="btn" id="simSigRight">▶ Kuuntele oikea merkki</button>` : ''}<span class="sector-hint" style="margin:0 0 0 8px">Pidä välilyöntiä pohjassa, niin näet aluksen hämäränäkymässä.</span></div>`;
+        }
       }
     }
     box.innerHTML = h;
-    box.querySelectorAll('.answers button').forEach(b => b.onclick = () => encAnswer(+b.dataset.k));
+    box.querySelectorAll('.answers button[data-k]').forEach(b => b.onclick = () => encAnswer(+b.dataset.k));
+    box.querySelectorAll('.sig-play').forEach(b => b.onclick = () => horn(b.dataset.c));
+    const hear = $('simSigHear'); if (hear) hear.onclick = () => horn(SIGQ[e.sig].play);
+    const rr = $('simSigRight'); if (rr) rr.onclick = () => horn(e.sopts.find(o => o.ok).code);
     $('simLookAt').onclick = () => lookAt(e.T); $('simLookFwd').onclick = () => setLook(0);
     if (e.step === 1) box.scrollIntoView({ block:'nearest', behavior:'smooth' });
     const go = $('simEncGo'); if (go) { go.onclick = encDone; go.focus(); }
@@ -2429,10 +2479,16 @@ const SIM = (() => {
   function encAnswer(k) {
     const e = s.enc; if (!e) return;
     if (e.step === 1) { e.pick1 = k; e.step = 2; s.idN++; if (e.opts[k].ok) s.idOk++; }
-    else if (e.step === 2) { e.pick2 = k; e.step = 3; s.decN++; if (DEC[k].k === e.cls.ans) s.decOk++; }
+    else if (e.step === 2) {
+      e.pick2 = k; e.step = 3; s.decN++; if (DEC[k].k === e.cls.ans) s.decOk++;
+      e.sig = sigCase(e);
+      e.sopts = shuffle(SIGQ[e.sig].opts.map(([code, label, ok]) => ({ code, label, ok: !!ok })));
+      if (SIGQ[e.sig].play) horn(SIGQ[e.sig].play);
+    }
+    else if (e.step === 3) { e.pick3 = k; e.step = 4; s.sigN++; if (e.sopts[k].ok) s.sigOk++; }
     encUi(); info();
   }
-  function encDone() { setPeek(false); s.enc = null; s.paused = false; s.last = performance.now(); encUi(); }
+  function encDone() { setPeek(false); horn(''); s.enc = null; s.paused = false; s.last = performance.now(); encUi(); }
   function checkCollision() {
     for (const T of traffic) {
       const d = Math.hypot(T.x - s.x, T.y - s.y), half = T.def.big ? 95 : T.def.id === 'tow' ? 55 : 10;
@@ -2471,7 +2527,7 @@ const SIM = (() => {
     window.addEventListener('blur', () => setPeek(false));
     // katseen kääntö vetämällä yönäkymää
     const view = $('simBox'); let lk = null;
-    view.addEventListener('pointerdown', (e) => { if (e.target.closest('button,.sim-enc')) return; lk = { x:e.clientX, l:s.look }; try { view.setPointerCapture(e.pointerId); } catch {} });
+    view.addEventListener('pointerdown', (e) => { if ((e.target.closest ? e.target : document.body).closest('button,.sim-enc')) return; lk = { x:e.clientX, l:s.look }; try { view.setPointerCapture(e.pointerId); } catch {} });
     view.addEventListener('pointermove', (e) => { if (lk) setLook(lk.l - (e.clientX - lk.x) * FOV / Math.max(300, view.clientWidth)); });
     const endLk = () => { lk = null; }; view.addEventListener('pointerup', endLk); view.addEventListener('pointercancel', endLk);
     view.addEventListener('dblclick', () => setLook(0));
@@ -2525,9 +2581,9 @@ document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => setView
 document.addEventListener('keyup', (e) => SIM.keyup(e));
 document.addEventListener('keydown', (e) => {
   if (st.view === 'sim') { SIM.key(e); return; }
-  if (e.target.closest('select,input[type="range"]') && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) return;
+  if ((e.target.closest ? e.target : document.body).closest('select,input[type="range"]') && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
-  const onBtn = e.target.closest('button');
+  const onBtn = (e.target.closest ? e.target : document.body).closest('button');
   if (st.view === 'harjoittelu') {
     if (e.key === 'ArrowRight') { setIdx(st.idx + 1); e.preventDefault(); }
     else if (e.key === 'ArrowLeft') { setIdx(st.idx - 1); e.preventDefault(); }
