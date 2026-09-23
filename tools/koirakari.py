@@ -11,9 +11,8 @@ import json, math, re, sys, time, urllib.request, urllib.parse
 from pathlib import Path
 
 LIGHT_NO = '11430'                    # Koirakari
-BBOX = (24.85, 60.085, 24.97, 60.15)  # lon0, lat0, lon1, lat1
-COAST_BBOX = (60.095, 24.86, 60.155, 24.96)
-FAIRWAYS = {'4675', '4610', '4710'}
+BBOX = (24.85, 60.085, 25.03, 60.165)  # lon0, lat0, lon1, lat1
+COAST_BBOX = (60.07, 24.80, 60.18, 25.05)
 API = 'https://avoinapi.vaylapilvi.fi/vaylatiedot/ogc/features/v1/collections/vesivaylatiedot:{}/items?f=json&limit=5000&bbox={}'
 UA = {'User-Agent': 'kulkuvalot-harjoitus/1.0'}
 
@@ -65,6 +64,7 @@ def main():
     lo = feats('loistot_uusi')
     vs = feats('valosektorit_uusi')
     nl = feats('navigointilinjat_uusi')
+    va = feats('vaylaalueet_uusi')
 
     main_f = next(f for f in tl if f['properties']['turvalaitenumero'] == LIGHT_NO)
     lon0, lat0 = main_f['geometry']['coordinates'][0]
@@ -106,28 +106,34 @@ def main():
     lines = []
     for f in nl:
         p = f['properties']
-        if not (set(str(p['jnro']).split('\\n')) & FAIRWAYS):
-            continue
         name = re.sub(r'\[\d+: ([^\]]+)\].*', r'\1', p['vaylan_nimi'].split('\\n')[0])
         lines.append({'j': str(p['jnro']).split('\\n')[0], 'name': name, 'c': [P(*c) for c in f['geometry']['coordinates']]})
+
+    areas = []
+    for f in va:
+        p = f['properties']; g = f['geometry']
+        polys = g['coordinates'] if g['type'] == 'MultiPolygon' else [g['coordinates']]
+        for poly in polys:
+            areas.append({'j': str(p['jnro']).split('\\n')[0], 'd': p.get('mitoitussyvays'),
+                          'r': [P(*c[:2]) for c in poly[0]]})
 
     coast = fetch_coast()
     land, shore = [], []
     for w in coast:
-        pts = simplify([P(g['lon'], g['lat']) for g in w['geometry']], 4)
+        pts = simplify([P(g["lon"], g["lat"]) for g in w["geometry"]], 5)
         if len(pts) < 2:
             continue
         closed = w['geometry'][0] == w['geometry'][-1]
         (land if closed and len(pts) > 3 else shore).append(pts)
 
     data = {'src': 'Väylävirasto (CC BY 4.0), © OpenStreetMap-tekijät (ODbL)', 'origin': [lon0, lat0],
-            'lights': out_lights, 'lines': lines, 'land': land, 'shore': shore}
+            'lights': out_lights, 'lines': lines, 'areas': areas, 'land': land, 'shore': shore}
     js = 'const KOIRA = ' + json.dumps(data, ensure_ascii=False, separators=(',', ':')) + ';'
     app = Path(__file__).resolve().parent.parent / 'src' / 'app.html'
     s = app.read_text()
     s = re.sub(r'/\* KOIRA-DATA \*/.*?/\* /KOIRA-DATA \*/', lambda m: '/* KOIRA-DATA */' + js + '/* /KOIRA-DATA */', s, flags=re.S)
     app.write_text(s)
-    print(f'valoja {len(out_lights)}, väylälinjoja {len(lines)}, saaria {len(land)}, rantaviivoja {len(shore)}, {len(js)//1024} kt')
+    print(f'valoja {len(out_lights)}, väylälinjoja {len(lines)}, väyläalueita {len(areas)}, saaria {len(land)}, rantaviivoja {len(shore)}, {len(js)//1024} kt')
 
 
 def fetch_coast():
