@@ -2377,8 +2377,8 @@ const SIM = (() => {
     const vid = V[T.vi].id, priv = PRIV[vid];
     const weOvertake = a > 112.5 && a < 247.5 && s.v > T.def.kn * KN;
     const theyOvertake = Math.abs(beta) > 112.5;
-    if (weOvertake) return { ans:'give', rule:'Sääntö 13: ohittava alus väistää aina. Olet toisen aluksen perän puolella, joten sinä ohitat ja väistät.' };
-    if (theyOvertake) return { ans:'stand', rule:'Sääntö 13 ja 17: toinen alus ohittaa sinut ja väistää. Pidä suuntasi ja nopeutesi, mutta seuraa tilannetta.' };
+    if (weOvertake) return { ans:'give', rule:'Sääntö 13: olet ohittava alus ja väistät. Näet toisesta aluksesta vain valkoisen perävalon etkä kumpaakaan sivuvaloa, joten tulet sitä kohti yli 22,5° poikkiviivan takaa. Ohittava väistää aina, myös purjealus, joka ohittaa konealuksen. Jos olet epävarma, oleta olevasi ohittava (13 c).' };
+    if (theyOvertake) return { ans:'stand', rule:'Sääntö 13 ja 17: toinen alus tulee takaasi yli 22,5° poikkiviivan takaa. Se näkee veneestäsi vain perävalon, joten se on ohittava alus ja väistää, olipa se millainen alus tahansa. Pidä suuntasi ja nopeutesi. Jos se ei väistä, toimi itse viimeistään silloin, kun yhteentörmäystä ei voi enää välttää pelkästään sen toimin (17 b).' };
     if (priv === 'sail') return { ans:'give', rule:'Sääntö 18: konealus väistää purjealusta. Veneesi kulkee koneella, joten se on konealus.' };
     if (priv === 'fish') return { ans:'give', rule:'Sääntö 18: konealus väistää kalastavaa alusta. Kalastusvalot (vihreä tai punainen valkoisen yläpuolella) kertovat, ettei alus pysty väistämään.' };
     if (priv) return { ans:'give', rule:'Sääntö 18: ohjailukyvytöntä ja ohjailukyvyltään rajoitettua alusta väistetään.' };
