@@ -195,6 +195,11 @@ body.follower .wrap{max-width:none}
 @media (prefers-reduced-motion:reduce){#simEnc.pulse{animation:none}}
 .sim-slider{width:100%;accent-color:var(--brass);touch-action:none;height:28px}
 #simHold[aria-pressed="true"]{border-color:var(--brass);color:var(--brass)}
+.sim-pair{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(6,10,17,.96);border:1px solid var(--brass);border-radius:12px;padding:14px 18px;display:grid;gap:8px;justify-items:center;text-align:center;max-width:92%;z-index:3}
+.sim-pair p{margin:0}
+.sim-pair #simQr{width:180px;height:180px;background:#fff;border-radius:6px;padding:4px}
+.sim-pair #simQr svg{width:100%;height:100%;display:block}
+.sim-pair code{font:500 13px var(--mono);color:#dfe6f0;word-break:break-all}
 .sig-row{display:flex;gap:6px;align-items:stretch}
 .sig-row>button:first-child{flex:1}
 .sig-play{flex:0 0 44px;border:1px solid var(--line2);background:var(--panel2);border-radius:8px;cursor:pointer;color:var(--brass);font-size:16px}
@@ -517,6 +522,7 @@ a{color:var(--brass)}
             <div class="sim-spd"><b id="simSpd">0,0</b><span class="lbl">solmua</span><span class="lbl" id="simTime">0:00</span></div>
           </div>
           <div class="sim-banner" id="simBanner" hidden></div>
+          <div class="sim-pair" id="simPair" hidden></div>
           <div class="sim-encnote" id="simEncNote" hidden>Lähestymistilanne: vastaa karttaikkunassa tai numeronäppäimillä 1–4</div>
         </div>
         <div class="sim-enc" id="simEnc" hidden></div>
@@ -546,6 +552,7 @@ a{color:var(--brass)}
         </div>
         <div class="row" style="margin-top:10px;gap:18px">
           <button class="btn" id="simPopBtn" title="Avaa kartta ja kysymykset omaan ikkunaan toiselle näytölle">Kartta toiseen ikkunaan</button>
+          <button class="btn" id="simRemoteBtn" title="Yhdistä iPad tai toinen laite QR-koodilla">Kartta iPadille</button>
           <label class="check"><input type="checkbox" id="simChartIn" checked> Näytä kartta</label>
           <label class="check"><input type="checkbox" id="simNames"> Näytä valojen nimet</label>
           <label class="check"><input type="checkbox" id="simEncIn" checked> Kysy lähestymistilanteissa</label>
@@ -631,7 +638,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.3', APP_BUILD = '24.9.2026 08:03';
+const APP_VERSION = '2.4', APP_BUILD = '24.9.2026 08:12';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
@@ -1867,7 +1874,8 @@ function kShow() {
 }
 
 /* ---------- yöajon simulaattori ---------- */
-const FOLLOWER = location.hash === '#simkartta';
+const FOLLOWER = location.hash.startsWith('#simkartta');
+const REMOTE_CODE = (location.hash.match(/^#simkartta-(\d{4,6})$/) || [])[1] || null;
 const SIM = (() => {
   const EYE = 2.5, FOV = 72, HY = 250, VX = 6, KVp = 1000 / FOV * VX, NCOL = 160, W = 1000, H = 440;
   const KN = .5144;
@@ -2655,7 +2663,37 @@ const SIM = (() => {
 
   // --- kaksi näyttöä: pääikkuna (näkymä ja ohjaimet) ja karttaikkuna (kartta ja kysymykset) ---
   const BC = ('BroadcastChannel' in window) ? new BroadcastChannel('kulkuvalot-sim') : null;
-  function act2(m) { if (FOLLOWER) { BC && BC.postMessage(m); } else handleMsg(m); }
+  let RC = null;                                                    // yhteys toiseen laitteeseen
+  function tx(m) { if (BC) BC.postMessage(m); if (RC && RC.open) { try { RC.send(m); } catch {} } }
+  function loadScript(src, test) {
+    return new Promise((res, rej) => { if (test()) return res(); const sc = document.createElement('script'); sc.src = src; sc.onload = () => res(); sc.onerror = () => rej(new Error(src)); document.head.appendChild(sc); });
+  }
+  const loadPeer = () => loadScript('https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js', () => !!window.Peer);
+  const loadQr = () => loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js', () => !!window.qrcode);
+  // pääikkuna: pariliitos toiseen laitteeseen koodilla
+  async function startRemote() {
+    try { await loadPeer(); } catch { flash('Yhteyskirjaston lataus epäonnistui. Tarkista verkkoyhteys.', 'VIRHE'); return; }
+    if (s.peer) { try { s.peer.destroy(); } catch {} }
+    const code = String(Math.floor(1000 + Math.random() * 9000));
+    const peer = new Peer('kulkuvalot-' + code, { debug: 0 });
+    s.peer = peer;
+    peer.on('open', () => showPair(code));
+    peer.on('error', (e) => { if (e.type === 'unavailable-id') { startRemote(); } else { flash('Yhteysvirhe: ' + e.type + '. Yritä uudelleen.', 'VIRHE'); } });
+    peer.on('connection', (conn) => {
+      conn.on('open', () => { RC = conn; $('simPair').hidden = true; flash('iPad yhdistetty. Kartta ja kysymykset näkyvät nyt siellä.'); });
+      conn.on('data', (m) => handleMsg(m));
+      conn.on('close', () => { if (RC === conn) { RC = null; setPopped(false); flash('Yhteys toiseen laitteeseen katkesi.', 'YHTEYS'); } });
+    });
+  }
+  async function showPair(code) {
+    const url = location.origin + location.pathname + '#simkartta-' + code;
+    const box = $('simPair');
+    box.innerHTML = `<b>Kartta toiselle laitteelle</b><p>Avaa iPadin kameralla QR-koodi tai kirjoita Safariin osoite:</p><div id="simQr"></div><code>${url.replace(/^https?:\/\//, '')}</code><p class="muted">Koodi <b style="font:600 22px var(--mono);color:var(--brass)">${code}</b> · molempien laitteiden on oltava verkossa.</p><div class="row" style="justify-content:center"><button class="btn" id="simPairClose">Sulje</button></div>`;
+    box.hidden = false;
+    $('simPairClose').onclick = () => { box.hidden = true; };
+    try { await loadQr(); const q = qrcode(0, 'M'); q.addData(url); q.make(); $('simQr').innerHTML = q.createSvgTag({ cellSize: 5, margin: 2, scalable: true }); } catch {}
+  }
+  function act2(m) { if (FOLLOWER) tx(m); else handleMsg(m); }
   function handleMsg(m) {
     if (m.type === 'ans') { if (s.enc) encAnswer(m.k); }
     else if (m.type === 'go') { if (s.enc) encDone(); }
@@ -2680,8 +2718,8 @@ const SIM = (() => {
     return { ti: traffic.indexOf(e.T), shown: e.shown, step: e.step, opts: e.opts, pick1: e.pick1, pick2: e.pick2, pick3: e.pick3, sig: e.sig, sopts: e.sopts, cls: e.cls };
   }
   function sendState(full) {
-    if (!BC) return;
-    BC.postMessage({ type:'state', m: MISSION.id, x: s.x, y: s.y, hdg: s.hdg, v: s.v, cp: s.cp, done: s.done, aground: s.aground, t: s.t, outT: s.outT,
+    if (!BC && !RC) return;
+    tx({ type:'state', m: MISSION.id, x: s.x, y: s.y, hdg: s.hdg, v: s.v, cp: s.cp, done: s.done, aground: s.aground, t: s.t, outT: s.outT,
       groundings: s.groundings, collisions: s.collisions, peeks: s.peeks, idOk: s.idOk, idN: s.idN, decOk: s.decOk, decN: s.decN, sigOk: s.sigOk, sigN: s.sigN,
       names: s.names, ais: s.ais, track: full || s.track.length % 10 === 0 ? s.track : null, tn: s.track.length, tr: traffic.map(T => [T.x, T.y, T.hdg]), enc: encSnap(), banner: $('simBanner').hidden ? '' : $('simBanner').textContent });
   }
@@ -2698,14 +2736,28 @@ const SIM = (() => {
     right.appendChild(head); right.appendChild($('simEnc')); right.appendChild($('simInfoCard'));
     wrap.appendChild(left); wrap.appendChild(right);
     $('view-sim').prepend(wrap);
-    $('simMission').onchange = () => BC && BC.postMessage({ type:'mission', id: $('simMission').value });
-    if (!BC) { $('fBanner').hidden = false; $('fBanner').textContent = 'Selaimesi ei tue kahden ikkunan tilaa.'; return; }
+    $('simMission').onchange = () => tx({ type:'mission', id: $('simMission').value });
     let got = false;
-    BC.onmessage = (ev) => { const m = ev.data; if (m.type === 'state') { got = true; applyState(m); } };
-    BC.postMessage({ type:'hello' });
-    setInterval(() => BC.postMessage({ type:'ping' }), 1000);
-    window.addEventListener('pagehide', () => BC.postMessage({ type:'bye' }));
-    setTimeout(() => { if (!got) { $('fBanner').hidden = false; $('fBanner').textContent = 'Pääikkunaa ei löydy. Avaa Yöajo ensin ja paina siellä ”Kartta toiseen ikkunaan”.'; } }, 2500);
+    const onState = (m) => { if (m && m.type === 'state') { got = true; $('fBanner').hidden = !m.banner || !!m.enc; applyState(m); } };
+    if (BC) BC.onmessage = (ev) => onState(ev.data);
+    const fb = (t) => { $('fBanner').hidden = false; $('fBanner').textContent = t; };
+    if (REMOTE_CODE) {
+      fb('Yhdistetään laitteeseen, koodi ' + REMOTE_CODE + ' …');
+      loadPeer().then(() => {
+        const peer = new Peer({ debug: 0 });
+        peer.on('open', () => {
+          const conn = peer.connect('kulkuvalot-' + REMOTE_CODE, { serialization: 'json', reliable: true });
+          conn.on('open', () => { RC = conn; tx({ type:'hello' }); });
+          conn.on('data', onState);
+          conn.on('close', () => fb('Yhteys katkesi. Avaa QR-koodi uudelleen pääkoneella.'));
+        });
+        peer.on('error', (e) => fb(e.type === 'peer-unavailable' ? 'Koodia ' + REMOTE_CODE + ' ei löydy. Paina pääkoneella ”Kartta iPadille” ja lue uusi QR-koodi.' : 'Yhteysvirhe: ' + e.type));
+      }).catch(() => fb('Yhteyskirjaston lataus epäonnistui. Tarkista verkkoyhteys.'));
+    } else if (!BC) { fb('Selaimesi ei tue kahden ikkunan tilaa.'); return; }
+    tx({ type:'hello' });
+    setInterval(() => tx({ type:'ping' }), 1000);
+    window.addEventListener('pagehide', () => tx({ type:'bye' }));
+    setTimeout(() => { if (!got && !REMOTE_CODE) fb('Pääikkunaa ei löydy. Avaa Yöajo ensin ja paina siellä ”Kartta toiseen ikkunaan”.'); }, 2500);
   }
   let lastEncKey = '', lastInfoKey = '';
   function applyState(m) {
@@ -2771,6 +2823,7 @@ const SIM = (() => {
     });
     if (BC && !FOLLOWER) BC.onmessage = (ev) => handleMsg(ev.data);
     $('simPopBtn').onclick = popOut;
+    $('simRemoteBtn').onclick = startRemote;
     $('simMission').innerHTML = MISSIONS.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
     $('simMission').value = MISSION.id;
     $('simMission').onchange = () => { MISSION = MISSIONS.find(m => m.id === $('simMission').value); store.set('simMission', MISSION.id); reset(); };
