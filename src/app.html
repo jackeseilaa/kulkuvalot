@@ -650,7 +650,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.14', APP_BUILD = '__BUILD__';
+const APP_VERSION = '2.15', APP_BUILD = '__BUILD__';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
@@ -2587,7 +2587,7 @@ const SIM = (() => {
       const [lx, ly] = [L.p[0], -L.p[1]], pt = (a, r) => `${f1(lx + r * Math.sin(a * D2R))},${f1(ly - r * Math.cos(a * D2R))}`;
       for (const [a0, a1, c] of L.sec) {
         const o0 = a0 + 180, o1 = a1 + 180, large = norm(o1 - o0) > 180 ? 1 : 0;
-        h += `<path d="M${lx},${ly} L${pt(o0, SR)} A${SR},${SR} 0 ${large} 1 ${pt(o1, SR)} Z" fill="${COL[SECOL[c]] || COL.w}" fill-opacity="${c === 'v' ? .12 : .09}"/>`;
+        h += `<path d="M${lx},${ly} L${pt(o0, SR)} A${SR},${SR} 0 ${large} 1 ${pt(o1, SR)} Z" fill="${COL[SECOL[c]] || COL.w}" fill-opacity="${c === 'v' ? .32 : .14}"/>`;
       }
       for (const b of [...new Set(L.sec.flatMap(x => [x[0], x[1]]))])
         h += `<line x1="${lx}" y1="${ly}" x2="${pt(b + 180, SR).replace(',', '" y2="')}" stroke="#c9d3e0" stroke-opacity=".55" stroke-dasharray="14 8" vector-effect="non-scaling-stroke" stroke-width="1"><title>${L.name}: sektoriraja ${String(b).replace('.', ',')}°</title></line>`;
