@@ -31,6 +31,7 @@ header{display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px;justify-cont
 .brand h1{margin:0;font-size:26px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
 .brand h1 span{color:var(--brass)}
 .brand p{margin:0;color:var(--muted);font-size:15px}
+.ver{font:500 12px var(--mono);color:#5f6d82;margin-left:8px;white-space:nowrap}
 .tabs{display:flex;flex-wrap:wrap;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px}
 .tabs button{border:0;background:none;padding:6px 16px;border-radius:999px;cursor:pointer;font-weight:600;letter-spacing:.04em;color:var(--muted)}
 @media (max-width:560px){.tabs{border-radius:12px}.tabs button{padding:6px 11px}}
@@ -243,7 +244,7 @@ a{color:var(--brass)}
   <header>
     <div class="brand">
       <h1>Kulku<span>valot</span></h1>
-      <p>Tunnista alus sen valoista pimeässä</p>
+      <p>Tunnista alus sen valoista pimeässä <span class="ver"></span></p>
     </div>
     <nav class="tabs" role="tablist" aria-label="Osiot">
       <button role="tab" id="tab-harjoittelu" aria-selected="true" data-view="harjoittelu">Harjoittelu</button>
@@ -615,6 +616,7 @@ a{color:var(--brass)}
         </ul>
       </div>
     </div>
+    <p class="credits">Versio: <span class="ver"></span></p>
     <p class="credits">Tämä harjoitus on laadittu Pekka Jylhän (merenkulun asiantuntija) ja Tapio Säypön (toteutus) Kulkuvalot-harjoitussivuston pohjalta. Alusten valot ja kansalliset erityisvalot (jäänmurtaja, viranomaisalus ja lossi) noudattavat alkuperäistä aineistoa. Tarkista ajantasaiset määräykset kansainvälisistä meriteiden säännöistä (COLREG) ja Traficomin ohjeista. Tämä sovellus on harjoitteluväline, eikä sitä ole tarkoitettu navigointiin.</p>
   </section>
 </div>
@@ -622,6 +624,10 @@ a{color:var(--brass)}
 <script>
 (() => {
 'use strict';
+// versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
+const APP_VERSION = '2.1', APP_BUILD = '24.9.2026 07:38';
+const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
+document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
 const COL = { w:'#fff3d6', r:'#ff2d3f', g:'#37ff8b', y:'#ffc933', b:'#3d7dff' };
 const CNAME = { w:'valkoinen', r:'punainen', g:'vihreä', y:'keltainen', b:'sininen' };
@@ -2426,10 +2432,35 @@ const SIM = (() => {
     }
     $('simTrafSil').innerHTML = sil; $('simTraf').innerHTML = lamps; $('simTrafRefl').innerHTML = refl;
   }
+  // rungon pohjapiirros mallin kiinteistä osista (todellinen koko metreinä)
+  function planOf(T) {
+    if (T.plan) return T.plan;
+    const polys = [];
+    let len = 0;
+    for (const p of T.m.parts) {
+      if (p.t !== 'solid') continue;
+      const hull = convexHull(p.pts.map(q => [q[0], q[1]]));
+      const xs = hull.map(q => q[0]), ys = hull.map(q => q[1]);
+      if (Math.max(...xs) - Math.min(...xs) < 2 && Math.max(...ys) - Math.min(...ys) < 2) continue;
+      polys.push(hull);
+      len = Math.max(len, (Math.max(...xs) - Math.min(...xs)) * T.def.sc);
+    }
+    return (T.plan = { polys, len });
+  }
   function drawAis() {
     const g = $('simAis'); if (!g) return;
-    const k = ZOOMS[s.zoom] / 1800;
-    g.innerHTML = s.ais ? traffic.map(T => `<g transform="translate(${f1(T.x)},${f1(-T.y)}) rotate(${f1(T.hdg)}) scale(${f1(k)})"><path d="M0,-55 L22,30 -22,30Z" fill="#7fd1ff" stroke="#0b1826" stroke-width="6"/></g>${s.names ? `<text x="${f1(T.x + 60 * k)}" y="${f1(-T.y)}" class="kc-small sim-sm">${T.def.name}</text>` : ''}`).join('') : '';
+    if (!s.ais) { g.innerHTML = ''; return; }
+    const Wv = ZOOMS[s.zoom], k = Wv / 1800, mpp = Wv / 330;          // metriä per näytön pikseli (noin)
+    g.innerHTML = traffic.map(T => {
+      const pl = planOf(T), h = T.hdg * D2R, v = T.hold > 0 ? 0 : T.def.kn * KN;
+      let out = pl.polys.map(poly => `<polygon points="${poly.map(q => { const w = toWorld(T, [q[0], q[1], 0]); return f1(w[0]) + ',' + f1(-w[1]); }).join(' ')}" fill="#7fd1ff" fill-opacity=".85" stroke="#0b1826" stroke-width="1" vector-effect="non-scaling-stroke"/>`).join('');
+      // pieni alus jäisi alle muutaman pikselin: lisätään merkki
+      if (pl.len / mpp < 7) out += `<g transform="translate(${f1(T.x)},${f1(-T.y)}) rotate(${f1(T.hdg)}) scale(${f1(k)})"><path d="M0,-40 L16,22 -16,22Z" fill="#7fd1ff" stroke="#0b1826" stroke-width="5"/></g>`;
+      // nopeusvektori: sijainti minuutin päästä
+      if (v > .1) out += `<line x1="${f1(T.x)}" y1="${f1(-T.y)}" x2="${f1(T.x + Math.sin(h) * v * 60)}" y2="${f1(-(T.y + Math.cos(h) * v * 60))}" stroke="#7fd1ff" stroke-width="1.3" vector-effect="non-scaling-stroke"/>`;
+      if (s.names) out += `<text x="${f1(T.x + Math.max(60 * k, pl.len * .6))}" y="${f1(-T.y)}" class="kc-small sim-sm">${T.def.name}</text>`;
+      return out;
+    }).join('');
   }
 
   // --- lähestymistilanteet ---
@@ -2648,7 +2679,7 @@ const SIM = (() => {
     const left = document.createElement('div'), right = document.createElement('div'); right.className = 'follow-side';
     left.appendChild($('simChartBox'));
     const head = document.createElement('div'); head.className = 'follow-head';
-    head.innerHTML = `<p class="eyebrow" style="margin:0">Yöajo · kartta ja kysymykset</p><div class="follow-hud"><span>Suunta <b id="fHdg">–</b></span><span>Nopeus <b id="fSpd">–</b> kn</span><span>Aika <b id="fTime">–</b></span></div><div id="fBanner" class="follow-banner" hidden></div>`;
+    head.innerHTML = `<p class="eyebrow" style="margin:0">Yöajo · kartta ja kysymykset <span class="ver">${VER_TEXT}</span></p><div class="follow-hud"><span>Suunta <b id="fHdg">–</b></span><span>Nopeus <b id="fSpd">–</b> kn</span><span>Aika <b id="fTime">–</b></span></div><div id="fBanner" class="follow-banner" hidden></div>`;
     right.appendChild(head); right.appendChild($('simEnc')); right.appendChild($('simInfoCard'));
     wrap.appendChild(left); wrap.appendChild(right);
     $('view-sim').prepend(wrap);

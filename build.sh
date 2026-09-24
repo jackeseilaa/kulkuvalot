@@ -11,4 +11,7 @@ cd "$(dirname "$0")"
   sed -n '/<\/style>/,$p' src/app.html | tail -n +2
   printf '</body>\n</html>\n'
 } > index.html
-echo "index.html päivitetty"
+# julkaisuaika versiotietoon
+BUILD=$(date '+%-d.%-m.%Y %H:%M')
+sed -i '' "s/__BUILD__/$BUILD/" index.html
+echo "index.html päivitetty ($BUILD)"
