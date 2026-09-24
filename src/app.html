@@ -227,7 +227,7 @@ body.follower .wrap{max-width:none}
 .sim-sm{font-size:var(--fs,95px)}
 #simChart .sim-places text{font:italic 600 calc(var(--fs, 90px) * 1.25) var(--sans);fill:#8fa3bd;paint-order:stroke;stroke:#0b1826;stroke-width:calc(var(--fs, 90px) * .3);letter-spacing:.04em}
 .sim-zoom{position:absolute;top:8px;right:8px;z-index:1;background:var(--panel)}
-.sim-basesel{position:absolute;bottom:8px;left:8px;z-index:1;display:flex;gap:8px;align-items:center;background:rgba(12,19,29,.9);border:1px solid var(--line2);border-radius:8px;padding:3px 8px}
+.sim-basesel{position:absolute;top:48px;left:8px;z-index:1;display:flex;gap:8px;align-items:center;background:rgba(12,19,29,.9);border:1px solid var(--line2);border-radius:8px;padding:3px 8px}
 .sim-basesel select{padding:3px 6px;font-size:13px;flex:0 0 auto;min-width:0}
 .sim-basesel .check{font-size:13px;gap:5px}
 .sim-basesel .check input{width:15px;height:15px}
@@ -650,7 +650,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.12', APP_BUILD = '__BUILD__';
+const APP_VERSION = '2.13', APP_BUILD = '__BUILD__';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
@@ -1613,7 +1613,7 @@ function kBuildChart() {
   const svg = $('kChart'); let s = '';
   s += `<rect x="-2400" y="-1900" width="4400" height="4500" fill="#0b1826"/>`;
   // sektorit (suuntimat merellä olevasta aluksesta loistoon päin)
-  const R = 3400, pt = (a, r) => [f1(r * Math.sin(a * D2R)), f1(-r * Math.cos(a * D2R))];
+  const R = 6000, pt = (a, r) => [f1(r * Math.sin(a * D2R)), f1(-r * Math.cos(a * D2R))];
   for (const [a0, a1, c] of KMAIN.sec) {
     const o0 = a0 + 180, o1 = a1 + 180, col = COL[SECOL[c]], p0 = pt(o0, R), p1 = pt(o1, R), large = norm(o1 - o0) > 180 ? 1 : 0;
     s += `<path d="M0,0 L${p0} A${R},${R} 0 ${large} 1 ${p1} Z" fill="${col}" fill-opacity="${c === 'v' ? .2 : .13}"/>`;
@@ -2505,6 +2505,18 @@ const SIM = (() => {
   }
   function chartStatic() {
     let g = '<g id="simOwnChart">';
+    // sektoriloistojen sektorit ja turvarajat: viivat jatkuvat 5 km:n päähän, saaret piirretään päälle
+    const SR = 5000;
+    for (const L of KL) {
+      if (L.sec.length < 2) continue;
+      const [lx, ly] = [L.p[0], -L.p[1]], pt = (a, r) => `${f1(lx + r * Math.sin(a * D2R))},${f1(ly - r * Math.cos(a * D2R))}`;
+      for (const [a0, a1, c] of L.sec) {
+        const o0 = a0 + 180, o1 = a1 + 180, large = norm(o1 - o0) > 180 ? 1 : 0;
+        g += `<path d="M${lx},${ly} L${pt(o0, SR)} A${SR},${SR} 0 ${large} 1 ${pt(o1, SR)} Z" fill="${COL[SECOL[c]] || COL.w}" fill-opacity="${c === 'v' ? .1 : .075}"/>`;
+      }
+      for (const b of [...new Set(L.sec.flatMap(x => [x[0], x[1]]))])
+        g += `<line x1="${lx}" y1="${ly}" x2="${pt(b + 180, SR).replace(',', '" y2="')}" stroke="#c9d3e0" stroke-opacity=".45" stroke-dasharray="14 8" vector-effect="non-scaling-stroke" stroke-width="1"><title>${L.name}: sektoriraja ${String(b).replace('.', ',')}°</title></line>`;
+    }
     for (const a of KOIRA.areas) g += `<polygon points="${a.r.map(p => p[0] + ',' + (-p[1])).join(' ')}" fill="#1a3350" fill-opacity=".32" stroke="#35587d" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
     for (const poly of KOIRA.land) g += `<polygon points="${poly.map(p => p[0] + ',' + (-p[1])).join(' ')}" fill="#1c2531" stroke="#3a4a5f" vector-effect="non-scaling-stroke" stroke-width="1"/>`;
     for (const ln of KOIRA.shore) g += `<polyline points="${ln.map(p => p[0] + ',' + (-p[1])).join(' ')}" fill="none" stroke="#4a5b72" vector-effect="non-scaling-stroke" stroke-width="1.2"/>`;
