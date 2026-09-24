@@ -623,7 +623,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.4', APP_BUILD = '__BUILD__';
+const APP_VERSION = '2.5', APP_BUILD = '__BUILD__';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
@@ -2619,10 +2619,27 @@ const SIM = (() => {
     encUi(); info();
   }
   function encDone() { setPeek(false); horn(''); s.enc = null; s.paused = false; s.last = performance.now(); encUi(); }
+  // etäisyys aluksen rungon ääriviivasta (metriä, 0 = rungon sisällä); runko mallin pohjapiirroksesta
+  function hullClearance(T) {
+    const pl = planOf(T), m = T.m, sc = T.def.sc, h = T.hdg * D2R, dx = s.x - T.x, dy = s.y - T.y;
+    const px = (dx * Math.sin(h) + dy * Math.cos(h)) / sc + m.cx, py = (dx * Math.cos(h) - dy * Math.sin(h)) / sc + m.cy;
+    let best = Infinity;
+    for (const poly of pl.polys) {
+      let inside = false;
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const [xi, yi] = poly[i], [xj, yj] = poly[j];
+        if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) inside = !inside;
+        const ex = xi - xj, ey = yi - yj, L2 = ex * ex + ey * ey || 1, u = Math.max(0, Math.min(1, ((px - xj) * ex + (py - yj) * ey) / L2));
+        best = Math.min(best, Math.hypot(xj + u * ex - px, yj + u * ey - py) * sc);
+      }
+      if (inside) return 0;
+    }
+    return best;
+  }
   function checkCollision() {
     for (const T of traffic) {
-      const d = Math.hypot(T.x - s.x, T.y - s.y), half = T.def.big ? 95 : T.def.id === 'tow' ? 55 : 10;
-      if (d < half + 8 && !(T.grace > s.t)) {
+      if (Math.hypot(T.x - s.x, T.y - s.y) > 300) continue;
+      if (hullClearance(T) < 6 && !(T.grace > s.t)) {                  // oma vene noin 12 m: 6 m marginaali
         T.grace = s.t + 60;
         s.aground = true; s.collisions++; s.v = 0; s.rot = 0;
         banner('YHTEENTÖRMÄYS', `Törmäsit alukseen: ${T.def.name.toLowerCase()}. Peruuta ja väistä ajoissa.`, true);
@@ -2823,7 +2840,7 @@ const SIM = (() => {
     if (km) s.keys[km] = false;
     if (e.key === 'Shift') s.keys.fine = false;
   }
-  return { keyup, _s: s, _step: step, _tr: () => traffic, _m: () => MISSION, _set: (id) => { MISSION = MISSIONS.find(m => m.id === id); reset(); }, _fw: fairwayAt, init, key, show() { s.last = performance.now(); init(); castView(true); drawChart(); hud(); info(); } };
+  return { keyup, _clr: hullClearance, _s: s, _step: step, _tr: () => traffic, _m: () => MISSION, _set: (id) => { MISSION = MISSIONS.find(m => m.id === id); reset(); }, _fw: fairwayAt, init, key, show() { s.last = performance.now(); init(); castView(true); drawChart(); hud(); info(); } };
 })();
 
 /* ---------- views ---------- */
