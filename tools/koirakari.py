@@ -11,8 +11,8 @@ import json, math, re, sys, time, urllib.request, urllib.parse
 from pathlib import Path
 
 LIGHT_NO = '11430'                    # Koirakari
-BBOX = (24.85, 60.085, 25.03, 60.165)  # lon0, lat0, lon1, lat1
-COAST_BBOX = (60.07, 24.80, 60.18, 25.05)
+BBOX = (24.82, 60.085, 25.065, 60.195)  # lon0, lat0, lon1, lat1
+COAST_BBOX = (60.07, 24.80, 60.20, 25.08)
 API = 'https://avoinapi.vaylapilvi.fi/vaylatiedot/ogc/features/v1/collections/vesivaylatiedot:{}/items?f=json&limit=5000&bbox={}'
 UA = {'User-Agent': 'kulkuvalot-harjoitus/1.0'}
 
@@ -175,7 +175,7 @@ def overpass(q, cache_flag):
 
 def fetch_rocks(P):
     """Kivet, karikot ja matalikot OpenStreetMapista (merikarttamerkinnät seamark:*)"""
-    b = '60.08,24.83,60.19,25.05'
+    b = '60.08,24.82,60.20,25.07'
     q = ('[out:json][timeout:150];(node["seamark:type"~"rock|obstruction|wreck"](%s);node["natural"~"rock|stone|reef|shoal"](%s);'
          'way["seamark:type"~"rock|obstruction"](%s);way["natural"~"reef|shoal"](%s););out geom;') % (b, b, b, b)
     rocks, reefs = [], []
