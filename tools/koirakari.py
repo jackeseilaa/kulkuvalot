@@ -128,6 +128,7 @@ def main():
                           'r': [P(*c[:2]) for c in poly[0]]})
 
     coast = fetch_coast()
+    rocks, reefs = fetch_rocks(P)
     land, shore = [], []
     for w in coast:
         pts = simplify([P(g["lon"], g["lat"]) for g in w["geometry"]], 5)
@@ -137,13 +138,13 @@ def main():
         (land if closed and len(pts) > 3 else shore).append(pts)
 
     data = {'src': 'Väylävirasto (CC BY 4.0), © OpenStreetMap-tekijät (ODbL)', 'origin': [lon0, lat0],
-            'lights': out_lights, 'marks': marks, 'lines': lines, 'areas': areas, 'land': land, 'shore': shore}
+            'lights': out_lights, 'marks': marks, 'lines': lines, 'areas': areas, 'rocks': rocks, 'reefs': reefs, 'land': land, 'shore': shore}
     js = 'const KOIRA = ' + json.dumps(data, ensure_ascii=False, separators=(',', ':')) + ';'
     app = Path(__file__).resolve().parent.parent / 'src' / 'app.html'
     s = app.read_text()
     s = re.sub(r'/\* KOIRA-DATA \*/.*?/\* /KOIRA-DATA \*/', lambda m: '/* KOIRA-DATA */' + js + '/* /KOIRA-DATA */', s, flags=re.S)
     app.write_text(s)
-    print(f'valoja {len(out_lights)}, valaisemattomia merkkejä {len(marks)}, väylälinjoja {len(lines)}, väyläalueita {len(areas)}, saaria {len(land)}, rantaviivoja {len(shore)}, {len(js)//1024} kt')
+    print(f'valoja {len(out_lights)}, valaisemattomia merkkejä {len(marks)}, väylälinjoja {len(lines)}, väyläalueita {len(areas)}, saaria {len(land)}, rantaviivoja {len(shore)}, kiviä {len(rocks)}, karikoita {len(reefs)}, {len(js)//1024} kt')
 
 
 def fetch_coast():
@@ -158,6 +159,38 @@ def fetch_coast():
             print('Overpass-virhe, yritetään uudelleen:', e)
             time.sleep(10)
     raise SystemExit('Rantaviivoja ei saatu. Kokeile myöhemmin tai käytä --coast tiedosto.json')
+
+
+def overpass(q, cache_flag):
+    if cache_flag in sys.argv:
+        return json.load(open(sys.argv[sys.argv.index(cache_flag) + 1]))['elements']
+    for attempt in range(3):
+        try:
+            return get('https://overpass-api.de/api/interpreter', urllib.parse.urlencode({'data': q}).encode())['elements']
+        except Exception as e:
+            print('Overpass-virhe, yritetään uudelleen:', e)
+            time.sleep(15)
+    raise SystemExit('Overpass ei vastaa. Kokeile myöhemmin.')
+
+
+def fetch_rocks(P):
+    """Kivet, karikot ja matalikot OpenStreetMapista (merikarttamerkinnät seamark:*)"""
+    b = '60.08,24.83,60.19,25.05'
+    q = ('[out:json][timeout:150];(node["seamark:type"~"rock|obstruction|wreck"](%s);node["natural"~"rock|stone|reef|shoal"](%s);'
+         'way["seamark:type"~"rock|obstruction"](%s);way["natural"~"reef|shoal"](%s););out geom;') % (b, b, b, b)
+    rocks, reefs = [], []
+    for e in overpass(q, '--rocks'):
+        t = e.get('tags', {})
+        kind = t.get('seamark:type') or t.get('natural')
+        wl = t.get('seamark:rock:water_level') or t.get('seamark:obstruction:water_level') or ''
+        k = 'dry' if wl in ('always_dry', 'dry') else 'awash' if wl in ('awash', 'covers', 'floating') else 'sub' if wl in ('submerged', 'below_mlw') else ('reef' if kind in ('reef', 'shoal') else 'rock')
+        if e['type'] == 'node':
+            rocks.append({'p': P(e['lon'], e['lat']), 'k': k})
+        elif e.get('geometry'):
+            pts = simplify([P(g['lon'], g['lat']) for g in e['geometry']], 3)
+            if len(pts) >= 3:
+                reefs.append({'r': pts, 'k': k})
+    return rocks, reefs
 
 
 def simplify(pts, tol):
