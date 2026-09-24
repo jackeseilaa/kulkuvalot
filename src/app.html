@@ -409,9 +409,7 @@ a{color:var(--brass)}
   </div>
 
   <div id="view-koira" hidden>
-    <div class="koira-grid">
-      <section>
-        <div class="stage-box" id="kNightBox">
+    <div class="stage-box" id="kNightBox" style="margin-bottom:12px">
           <svg id="kNight" viewBox="0 0 1000 400" role="img" aria-label="Yönäkymä veneestä">
             <rect x="0" y="0" width="1000" height="400" fill="url(#skyN)"/>
             <rect id="kWater" x="0" y="250" width="1000" height="150" fill="url(#waterN)"/>
@@ -423,6 +421,8 @@ a{color:var(--brass)}
           <div class="stage-bearing" id="kHdg"></div>
           <div class="stage-hint" id="kEyeNote"></div>
         </div>
+    <div class="koira-grid">
+      <section>
         <div class="controls">
           <div class="row" style="justify-content:space-between">
             <div class="seg" role="group" aria-label="Käyttötapa" id="kSeg">
@@ -616,7 +616,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.1', APP_BUILD = '__BUILD__';
+const APP_VERSION = '2.2', APP_BUILD = '__BUILD__';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;

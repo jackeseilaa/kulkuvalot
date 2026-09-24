@@ -6,6 +6,8 @@ cd "$(dirname "$0")"
   printf '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
   printf '<meta name="description" content="Kulkuvalojen harjoitusohjelma: tunnista alus sen valoista pimeässä.">\n'
   printf '<meta name="theme-color" content="#060a11">\n'
+  printf '<link rel="manifest" href="manifest.webmanifest">\n<link rel="apple-touch-icon" href="apple-touch-icon.png">\n<link rel="icon" type="image/png" href="icon-192.png">\n'
+  printf '<meta name="apple-mobile-web-app-title" content="Kulkuvalot">\n<meta name="application-name" content="Kulkuvalot">\n<meta name="apple-mobile-web-app-capable" content="yes">\n'
   sed -n '1,/<\/style>/p' src/app.html
   printf '</head>\n<body>\n'
   sed -n '/<\/style>/,$p' src/app.html | tail -n +2

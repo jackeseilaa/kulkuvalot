@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Kulkuvalojen harjoitusohjelma: tunnista alus sen valoista pimeässä.">
 <meta name="theme-color" content="#060a11">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<meta name="apple-mobile-web-app-title" content="Kulkuvalot">
+<meta name="application-name" content="Kulkuvalot">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>Kulkuvalot</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -418,9 +424,7 @@ a{color:var(--brass)}
   </div>
 
   <div id="view-koira" hidden>
-    <div class="koira-grid">
-      <section>
-        <div class="stage-box" id="kNightBox">
+    <div class="stage-box" id="kNightBox" style="margin-bottom:12px">
           <svg id="kNight" viewBox="0 0 1000 400" role="img" aria-label="Yönäkymä veneestä">
             <rect x="0" y="0" width="1000" height="400" fill="url(#skyN)"/>
             <rect id="kWater" x="0" y="250" width="1000" height="150" fill="url(#waterN)"/>
@@ -432,6 +436,8 @@ a{color:var(--brass)}
           <div class="stage-bearing" id="kHdg"></div>
           <div class="stage-hint" id="kEyeNote"></div>
         </div>
+    <div class="koira-grid">
+      <section>
         <div class="controls">
           <div class="row" style="justify-content:space-between">
             <div class="seg" role="group" aria-label="Käyttötapa" id="kSeg">
@@ -625,7 +631,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.1', APP_BUILD = '24.9.2026 07:38';
+const APP_VERSION = '2.2', APP_BUILD = '24.9.2026 07:56';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
