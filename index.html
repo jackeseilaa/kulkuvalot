@@ -665,7 +665,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.16', APP_BUILD = '24.9.2026 11:51';
+const APP_VERSION = '2.17', APP_BUILD = '24.9.2026 15:24';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
@@ -2963,8 +2963,12 @@ const SIM = (() => {
     ot: { q:'Luotsivene antaa äänimerkin. Kuuntele. Mitä se tarkoittaa ja miten vastaat?', play:'lls',
       opts:[['lsls', 'Se aikoo ohittaa oikealta puoleltani. Jos hyväksyn, vastaan pitkä, lyhyt, pitkä, lyhyt', 1], ['s', 'Se kääntyy oikealle. En vastaa'], ['sssss', 'Se aikoo ohittaa vasemmalta puoleltani. Vastaan viisi lyhyttä'], ['ss', 'Se on ohjailukyvytön. Väistän']],
       rule:'Sääntö 9 e ja 34 c: kapealla väylällä ohittava ilmoittaa aikeensa. Kaksi pitkää ja yksi lyhyt tarkoittaa, että ohitan oikealta puoleltasi, ja kaksi pitkää ja kaksi lyhyttä, että ohitan vasemmalta puoleltasi. Ohitettava vastaa suostumuksensa pitkä, lyhyt, pitkä, lyhyt ja antaa tilaa. Jos se epäilee, se antaa vähintään viisi lyhyttä. Ohittava väistää silti koko ohituksen ajan.' },
+    otP: { q:'Luotsivene antaa äänimerkin. Kuuntele. Mitä se tarkoittaa ja miten vastaat?', play:'llss',
+      opts:[['lsls', 'Se aikoo ohittaa vasemmalta puoleltani. Jos hyväksyn, vastaan pitkä, lyhyt, pitkä, lyhyt', 1], ['s', 'Se kääntyy oikealle. En vastaa'], ['sssss', 'Se aikoo ohittaa oikealta puoleltani. Vastaan viisi lyhyttä'], ['ss', 'Se on ohjailukyvytön. Väistän']],
+      rule:'Sääntö 9 e ja 34 c: kapealla väylällä ohittava ilmoittaa aikeensa. Kaksi pitkää ja yksi lyhyt tarkoittaa, että ohitan oikealta puoleltasi, ja kaksi pitkää ja kaksi lyhyttä, että ohitan vasemmalta puoleltasi. Ohitettava vastaa suostumuksensa pitkä, lyhyt, pitkä, lyhyt ja antaa tilaa. Jos se epäilee, se antaa vähintään viisi lyhyttä. Ohittava väistää silti koko ohituksen ajan.' },
   };
-  function sigCase(e) { return e.T.def.sigOvertake && e.cls.ans === 'stand' ? 'ot' : (e.cls.ans === 'stand' ? 'stand' : 'stbd'); }
+  // ohittavan merkki kertoo sen puolen, jolta alus todella ohittaa (avoidSide -1 = veneen vasemmalta)
+  function sigCase(e) { return e.T.def.sigOvertake && e.cls.ans === 'stand' ? (e.T.avoidSide === -1 ? 'otP' : 'ot') : (e.cls.ans === 'stand' ? 'stand' : 'stbd'); }
   const ansList = (opts) => `<div class="answers">${opts.map((o, k) => `<button data-k="${k}"><kbd>${k + 1}</kbd><span>${o.label}</span></button>`).join('')}</div>`;
   function showTarget() { if (!s.enc) return; s.enc.shown = true; lookAt(s.enc.T); encUi(); if (s.popped) sendState(); }
   function encUi() {
