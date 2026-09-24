@@ -1932,7 +1932,7 @@ const SIM = (() => {
       cp(60.14080, 24.99308, 110, 'Kustaanmiekka', 'Olet salmessa. Pysy keskellä ja jatka koilliseen Kruunuvuorenselälle.'),
       cp(60.14760, 24.99920, 170, 'Kruunuvuorenselkä', 'Aja salmi läpi selälle.'),
     ] },
-    { id:'pihla', name:'Pihlajasaaren kierto', start:{ ...LL(60.12900, 24.90520), hdg:0 },
+    { id:'pihla', name:'Pihlajasaaren kierto myötäpäivään', start:{ ...LL(60.12900, 24.90520), hdg:0 },
       events:[{ cp:-1, id:'ferry', dist:0, dir:1, hold:70 }, { cp:4, id:'tri', dist:250, dir:1 }], cps:[
       cp(60.13950, 24.90540, 150, 'Pihlajasaaren länsipuoli', 'Aja pohjoiseen Länsisataman väylää. Punaiset M 1 ja M 3 jäävät vasemmalle ja vihreä M 2 oikealle. Pihlajasaaret ovat oikealla pimeänä siluettina.'),
       { x:-240, y:2100, r:140, name:'Länsisataman edusta', hint:'Jatka pohjoiseen, kunnes Pihlajasaaret jäävät kokonaan oikealle. Käänny sitten itään Länsisataman edustalle.' },
@@ -1942,6 +1942,17 @@ const SIM = (() => {
       cp(60.13232, 24.92796, 140, 'Tiirakarin kohta', 'Jatka lounaaseen Rysäkarin väylää. Glasmästarholmin eteläinen kardinaalimerkki jää vasemmalle.'),
       cp(60.12769, 24.91822, 140, 'Pihlajasaaren eteläpuoli', 'Käänny länteen Koirakarin pohjoispuolelle. Koirakarin läntinen kardinaalimerkki jää vasemmalle.'),
       cp(60.12900, 24.90520, 150, 'Takaisin lähtöpaikalle', 'Aja takaisin Länsisataman väylälle. Kierros on valmis.'),
+    ] },
+    { id:'pihla-v', name:'Pihlajasaaren kierto vastapäivään', start:{ ...LL(60.12900, 24.90520), hdg:100 },
+      events:[{ cp:2, id:'tri', dist:0, dir:1 }, { cp:5, id:'ferry', dist:2776, dir:-1 }], cps:[
+      cp(60.12769, 24.91822, 140, 'Pihlajasaaren eteläpuoli', 'Aja itään Koirakarin pohjoispuolitse. Koirakarin läntinen kardinaalimerkki (VQ (9) 10 s) jää nyt oikealle. Pihlajasaaret ovat vasemmalla pimeänä siluettina.'),
+      cp(60.13232, 24.92796, 140, 'Tiirakarin kohta', 'Käänny koilliseen Rysäkarin väylälle. Glasmästarholmin eteläinen kardinaalimerkki (VQ (6) + LFl 10 s) jää oikealle. Tiirakarin sektoriloisto (VQ (2) 3 s) on edessä oikealla.'),
+      cp(60.13842, 24.93145, 140, 'Pihlajasaaren itäpuoli', 'Jatka pohjoiseen Pihlajasaarten itäpuolitse. Saaret ovat vasemmalla. Lokkiluodon suunnasta voi tulla veneliikennettä oikealta.'),
+      cp(60.14159, 24.92777, 150, 'Pihlajasaaren koillispuoli', 'Käänny luoteeseen kohti Länsisataman edustaa. Pihlajasaaren poijut Pihlajasaari 1 (Fl R 3 s) ja Pihlajasaari 2 (Fl G 3 s) ovat lähellä. Katso, kummalle puolelle ne jäävät.'),
+      { x:650, y:2090, r:140, name:'Saukonnokan edusta', hint:'Aja länteen saarten pohjoispuolitse. Satama-alue ja laiturit ovat oikealla ja Pihlajasaaret vasemmalla. Varo satamaan tulevia ja sieltä lähteviä laivoja.' },
+      { x:-240, y:2100, r:140, name:'Länsisataman edusta', hint:'Käänny etelään Länsisataman väylälle. Satamaan palaava matkustaja-alus voi tulla vastaan samalla kapealla väylällä.' },
+      cp(60.13950, 24.90540, 150, 'Pihlajasaaren länsipuoli', 'Aja etelään Länsisataman väylää. Kuljet nyt väylän perussuuntaa vastaan, joten punaiset M 3 ja M 1 jäävät oikealle ja vihreä M 2 vasemmalle.'),
+      cp(60.12900, 24.90520, 150, 'Takaisin lähtöpaikalle', 'Kierros on valmis.'),
     ] },
   ];
   let MISSION = MISSIONS[Math.max(0, MISSIONS.findIndex(m => m.id === store.get('simMission', 'lintu')))];
@@ -2307,11 +2318,13 @@ const SIM = (() => {
   }
   function trafficPlace(T) {
     const p = pathAt(T, T.dist), q = pathAt(T, T.dist + T.dir * 70);
-    T.x = p[0]; T.y = p[1];
-    if (Math.hypot(q[0] - p[0], q[1] - p[1]) > 1) T.hdg = brg(p[0], p[1], q[0], q[1]);
+    if (Math.hypot(q[0] - p[0], q[1] - p[1]) > 1) T.path = brg(p[0], p[1], q[0], q[1]);
+    const h = (T.path || 0) * D2R, o = T.off || 0;                 // väistö: siirtymä oikealle (styyrpuuri)
+    T.x = p[0] + Math.cos(h) * o; T.y = p[1] - Math.sin(h) * o;
+    T.hdg = norm((T.path || 0) + (T.offRate || 0));                 // keula kääntyy väistön ajaksi
   }
   function trafficReset() {
-    for (const T of traffic) { T.dist = T.def.t0 * T.total; T.dir = 1; T.hold = 0; T.quiz = false; T.m = model(T.vi); trafficPlace(T); }
+    for (const T of traffic) { T.dist = T.def.t0 * T.total; T.dir = 1; T.hold = 0; T.quiz = false; T.off = 0; T.offRate = 0; T.avoidUntil = 0; T.m = model(T.vi); trafficPlace(T); }
     runEvents(-1);
   }
   // käsikirjoitetut kohtaamiset: alus asetetaan reitilleen, kun tarkastuspiste saavutetaan
@@ -2324,6 +2337,10 @@ const SIM = (() => {
   function trafficStep(dt) {
     for (const T of traffic) {
       if (T.hold > 0) { T.hold -= dt; continue; }
+      // väistämisvelvollinen alus kääntyy oikealle ja palaa reitilleen, kun vaara on ohi
+      const want = T.avoidUntil > s.t ? (T.avoidSide || 1) * (T.def.big ? 110 : 75) : 0, prev = T.off || 0;
+      T.off = prev + (want - prev) * Math.min(1, dt / (T.def.big ? 20 : 7));
+      T.offRate = Math.max(-25, Math.min(25, Math.atan2(T.off - prev, Math.max(.1, T.def.kn * KN * dt)) / D2R));
       T.dist += T.dir * T.def.kn * KN * dt;
       if (T.def.loop) { if (T.dist >= T.total) T.dist -= T.total; }
       else if (T.dist >= T.total) { T.dist = T.total; T.dir = -1; }
@@ -2385,7 +2402,7 @@ const SIM = (() => {
       }
     }
     // kysyttävän aluksen merkintä: kulmasulkeet näkymässä tai nuoli reunalla
-    if (s.enc && s.enc.T) {
+    if (s.enc && s.enc.T && s.enc.shown) {
       const T = s.enc.T, d = Math.hypot(T.x - s.x, T.y - s.y), rel = n180(brg(s.x, s.y, T.x, T.y) - norm(s.hdg + s.look));
       if (Math.abs(rel) <= FOV / 2) {
         const zTop = Math.max(...T.m.lights.map(l => l.p[2])) * T.def.sc;
@@ -2440,21 +2457,33 @@ const SIM = (() => {
     { k:'left', label:'Käännyn vasemmalle ja ohitan sen keulan edestä' },
   ];
   function checkEncounters() {
-    if (s.enc || !s.askEnc || s.aground || s.done) return;
+    if (s.enc || s.aground || s.done) return;
     for (const T of traffic) {
       const c = cpaOf(T);
       if (T.quiz && (c.d > 2200 || c.t < -30)) T.quiz = false;
       if (T.quiz || T.hold > 0 || c.d > 2000 || c.t <= 0 || c.t > 300 || c.cpa > 180) continue;
       const b = brg(s.x, s.y, T.x, T.y);
       if (ray(s.x, s.y, b, c.d) < c.d - 40) continue;
-      T.quiz = true; startEnc(T); return;
+      T.quiz = true;
+      const cls = classify(T);
+      if (cls.ans === 'stand' || cls.ans === 'both') {                          // toinen väistää (tai molemmat)
+        T.avoidUntil = s.t + 240;
+        const beta = n180(brg(s.x, s.y, T.x, T.y) - s.hdg), h = (T.path || T.hdg) * D2R;
+        const lat = (s.x - T.x) * Math.cos(h) - (s.y - T.y) * Math.sin(h);   // > 0: vene on aluksen oikealla puolella
+        // ohittava alus kiertää sen puolen, jolla on tilaa; muuten käännös oikealle
+        T.avoidSide = Math.abs(beta) > 112.5 ? (lat > 0 ? -1 : 1) : 1;
+      }
+      if (s.askEnc) { startEnc(T); return; }
     }
   }
   function startEnc(T) {
     const a = norm(brg(T.x, T.y, s.x, s.y) - T.hdg), sig = signature(T.vi, a);
     const pool = shuffle(V.map((_, j) => j).filter(j => j !== T.vi && signature(j, a) !== sig)).slice(0, 3);
     s.enc = { T, step:1, opts: shuffle([T.vi, ...pool]).map(j => ({ label: V[j].short, ok: j === T.vi })), cls: classify(T) };
-    s.paused = true; lookAt(T); encUi();
+    s.enc.shown = false;
+    s.paused = true; encUi();
+    clearTimeout(s.findTimer);
+    s.findTimer = setTimeout(() => { if (s.enc && s.enc.T === T && !s.enc.shown) showTarget(); }, 10000);
   }
   // --- äänimerkit (sääntö 34): lyhyt noin 1 s, pitkä 4–6 s (tässä lyhennetty 3 s) ---
   let AC = null, hornNodes = [];
@@ -2491,6 +2520,7 @@ const SIM = (() => {
   };
   function sigCase(e) { return e.T.def.sigOvertake && e.cls.ans === 'stand' ? 'ot' : (e.cls.ans === 'stand' ? 'stand' : 'stbd'); }
   const ansList = (opts) => `<div class="answers">${opts.map((o, k) => `<button data-k="${k}"><kbd>${k + 1}</kbd><span>${o.label}</span></button>`).join('')}</div>`;
+  function showTarget() { if (!s.enc) return; s.enc.shown = true; lookAt(s.enc.T); encUi(); if (s.popped) sendState(); }
   function encUi() {
     const e = s.enc, box = $('simEnc');
     const note = $('simEncNote'); if (note) note.hidden = !(e && s.popped && !FOLLOWER);
@@ -2498,9 +2528,9 @@ const SIM = (() => {
     box.hidden = false;
     const c = cpaOf(e.T);
     const eb = brg(s.x, s.y, e.T.x, e.T.y), er = n180(eb - s.hdg);
-    let h = `<div class="row" style="justify-content:space-between"><p class="eyebrow" style="margin:0">Lähestymistilanne · alus merkitty kuvaan · suuntima ${String(Math.round(eb)).padStart(3, '0')}° (${Math.abs(Math.round(er))}° ${er >= 0 ? 'oikealla' : 'vasemmalla'}) · ${Math.round(c.d)} m · lähin ohitus noin ${Math.round(c.cpa)} m ${Math.round(c.t / 60 * 10) / 10 > 0 ? `${(c.t / 60).toFixed(1).replace('.', ',')} min päästä` : ''}</p><div class="row"><button class="btn" id="simLookAt">Katso alukseen</button><button class="btn" id="simLookFwd">Katso eteen</button></div></div>`;
+    let h = `<div class="row" style="justify-content:space-between"><p class="eyebrow" style="margin:0">Lähestymistilanne · ${e.shown ? 'alus merkitty kuvaan' : 'etsi alus itse'} · suuntima ${String(Math.round(eb)).padStart(3, '0')}° (${Math.abs(Math.round(er))}° ${er >= 0 ? 'oikealla' : 'vasemmalla'}) · ${Math.round(c.d)} m · lähin ohitus noin ${Math.round(c.cpa)} m ${Math.round(c.t / 60 * 10) / 10 > 0 ? `${(c.t / 60).toFixed(1).replace('.', ',')} min päästä` : ''}</p><div class="row"><button class="btn" id="simLookAt">${e.shown ? 'Katso alukseen' : 'Näytä alus'}</button><button class="btn" id="simLookFwd">Katso eteen</button></div></div>`;
     if (e.step === 1) {
-      h += `<p class="question">1/3 · Mikä alus lähestyy? Katso merkityn aluksen valoja.</p>` + ansList(e.opts);
+      h += `<p class="question">1/3 · Mikä alus lähestyy? ${e.shown ? 'Katso merkityn aluksen valoja.' : 'Etsi se ensin itse suuntiman avulla. Ohjelma näyttää sen 10 sekunnin kuluttua.'}</p>` + ansList(e.opts);
     } else {
       const ok1 = e.opts[e.pick1].ok;
       h += `<p class="${ok1 ? 'verdict ok' : 'verdict bad'}" style="margin:0">${ok1 ? 'Oikein' : 'Väärin'}: ${V[e.T.vi].name}. ${V[e.T.vi].desc.slice(0, 2).join('. ')}.</p>`;
@@ -2530,7 +2560,7 @@ const SIM = (() => {
   }
   function encAnswer(k) {
     const e = s.enc; if (!e) return;
-    if (e.step === 1) { e.pick1 = k; e.step = 2; s.idN++; if (e.opts[k].ok) s.idOk++; }
+    if (e.step === 1) { e.pick1 = k; e.step = 2; if (!e.shown) { e.shown = true; lookAt(e.T); } s.idN++; if (e.opts[k].ok) s.idOk++; }
     else if (e.step === 2) {
       e.pick2 = k; e.step = 3; s.decN++; if (DEC[k].k === e.cls.ans) s.decOk++;
       e.sig = sigCase(e);
@@ -2574,7 +2604,7 @@ const SIM = (() => {
   function handleMsg(m) {
     if (m.type === 'ans') { if (s.enc) encAnswer(m.k); }
     else if (m.type === 'go') { if (s.enc) encDone(); }
-    else if (m.type === 'lookAt') { if (s.enc) lookAt(s.enc.T); }
+    else if (m.type === 'lookAt') { if (s.enc) showTarget(); }
     else if (m.type === 'lookFwd') setLook(0);
     else if (m.type === 'mission') { MISSION = MISSIONS.find(x => x.id === m.id) || MISSION; store.set('simMission', MISSION.id); $('simMission').value = MISSION.id; reset(); }
     else if (m.type === 'reset') reset();
@@ -2592,7 +2622,7 @@ const SIM = (() => {
   }
   function encSnap() {
     const e = s.enc; if (!e) return null;
-    return { ti: traffic.indexOf(e.T), step: e.step, opts: e.opts, pick1: e.pick1, pick2: e.pick2, pick3: e.pick3, sig: e.sig, sopts: e.sopts, cls: e.cls };
+    return { ti: traffic.indexOf(e.T), shown: e.shown, step: e.step, opts: e.opts, pick1: e.pick1, pick2: e.pick2, pick3: e.pick3, sig: e.sig, sopts: e.sopts, cls: e.cls };
   }
   function sendState(full) {
     if (!BC) return;
