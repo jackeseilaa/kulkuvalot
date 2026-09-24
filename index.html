@@ -642,7 +642,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.9', APP_BUILD = '24.9.2026 09:25';
+const APP_VERSION = '2.10', APP_BUILD = '24.9.2026 09:34';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
@@ -2066,8 +2066,14 @@ const SIM = (() => {
     while (i > 0 && back < 80) { back += Math.hypot(s.track[i][0] - s.track[i - 1][0], s.track[i][1] - s.track[i - 1][1]); i--; }
     const p = s.track[Math.max(0, i)];
     s.x = p[0]; s.y = p[1]; s.track.length = Math.max(1, i + 1);
-    s.aground = false; s.v = 0; s.thr = 0; s.rud = 0; s.rot = 0; s.hold = null; banner('');
-    castView(true);
+    const wasThr = s.thr;
+    s.aground = false; s.v = 0; s.rud = 0; s.rot = 0; s.hold = null; banner('');
+    s.hdg = norm(s.hdg + 25);                                          // keula hieman oikealle, pois esteen suunnasta
+    s.thr = wasThr > .05 ? .2 : 0;
+    s.keys = {};
+    castView(true); hud();
+    flash('Vene on taas vesillä. Lisää kaasua (↑ tai liukusäädin) ja ohjaa esteen ohi.', 'JATKA');
+    if (s.popped) sendState();
   }
   function finish() {
     s.done = true; s.thr = 0;
@@ -2368,6 +2374,7 @@ const SIM = (() => {
     if (FOLLOWER) {
       if (/^[1-4]$/.test(e.key)) { act2({ type:'ans', k:+e.key - 1 }); e.preventDefault(); return true; }
       if (e.key === 'Enter' && s.enc && s.enc.step === 4) { act2({ type:'go' }); e.preventDefault(); return true; }
+      if (e.key === 'Enter' && s.aground) { act2({ type:'back' }); e.preventDefault(); return true; }
       return false;
     }
     if (st.view !== 'sim' || e.metaKey || e.ctrlKey || e.altKey || (e.target.closest ? e.target : document.body).closest('input,select')) return false;
@@ -2387,6 +2394,7 @@ const SIM = (() => {
     if (e.key === 'e' || e.key === 'E') { setLook(s.look + 10); e.preventDefault(); return true; }
     if (e.key === 'w' || e.key === 'W') { setLook(0); e.preventDefault(); return true; }
     if (e.key === ' ') { if (!e.repeat) setPeek(true); e.preventDefault(); return true; }
+    if (s.aground && (e.key === 'Enter' || e.key === 'b' || e.key === 'B')) { backOff(); e.preventDefault(); return true; }
     if (e.key === 'p' || e.key === 'P') { if (s.enc) return false; s.paused = !s.paused; hud(); e.preventDefault(); return true; }
     return false;
   }
@@ -2916,7 +2924,11 @@ const SIM = (() => {
     $('fHdg').textContent = String(Math.round(m.hdg) % 360).padStart(3, '0') + '°';
     $('fSpd').textContent = (m.v / KN).toFixed(1).replace('.', ',');
     $('fTime').textContent = mmss(m.t);
-    const fb = $('fBanner'); fb.hidden = !m.banner || !!m.enc; fb.textContent = m.banner;
+    const fb = $('fBanner'); fb.hidden = !m.banner || !!m.enc;
+    if (fb.dataset.k === m.banner + m.aground) return;
+    fb.dataset.k = m.banner + m.aground;
+    if (m.aground) { fb.innerHTML = `${m.banner.replace('Peruuta vesille', '')} <button class="btn primary" id="fBack">Peruuta vesille</button>`; $('fBack').onclick = () => tx({ type:'back' }); }
+    else fb.textContent = m.banner;
   }
   function popOut() {
     const w = window.open(location.href.split('#')[0] + '#simkartta', 'kulkuvalot-kartta', 'width=1100,height=900');
