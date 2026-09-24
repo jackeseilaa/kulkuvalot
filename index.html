@@ -665,7 +665,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.13', APP_BUILD = '24.9.2026 11:21';
+const APP_VERSION = '2.14', APP_BUILD = '24.9.2026 11:43';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
@@ -2520,18 +2520,7 @@ const SIM = (() => {
   }
   function chartStatic() {
     let g = '<g id="simOwnChart">';
-    // sektoriloistojen sektorit ja turvarajat: viivat jatkuvat 5 km:n päähän, saaret piirretään päälle
-    const SR = 5000;
-    for (const L of KL) {
-      if (L.sec.length < 2) continue;
-      const [lx, ly] = [L.p[0], -L.p[1]], pt = (a, r) => `${f1(lx + r * Math.sin(a * D2R))},${f1(ly - r * Math.cos(a * D2R))}`;
-      for (const [a0, a1, c] of L.sec) {
-        const o0 = a0 + 180, o1 = a1 + 180, large = norm(o1 - o0) > 180 ? 1 : 0;
-        g += `<path d="M${lx},${ly} L${pt(o0, SR)} A${SR},${SR} 0 ${large} 1 ${pt(o1, SR)} Z" fill="${COL[SECOL[c]] || COL.w}" fill-opacity="${c === 'v' ? .1 : .075}"/>`;
-      }
-      for (const b of [...new Set(L.sec.flatMap(x => [x[0], x[1]]))])
-        g += `<line x1="${lx}" y1="${ly}" x2="${pt(b + 180, SR).replace(',', '" y2="')}" stroke="#c9d3e0" stroke-opacity=".45" stroke-dasharray="14 8" vector-effect="non-scaling-stroke" stroke-width="1"><title>${L.name}: sektoriraja ${String(b).replace('.', ',')}°</title></line>`;
-    }
+    g += '<g id="simSecs"></g>';                                    // lähimpien sektoriloistojen sektorit (drawSecs)
     for (const a of KOIRA.areas) g += `<polygon points="${a.r.map(p => p[0] + ',' + (-p[1])).join(' ')}" fill="#1a3350" fill-opacity=".32" stroke="#35587d" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
     for (const poly of KOIRA.land) g += `<polygon points="${poly.map(p => p[0] + ',' + (-p[1])).join(' ')}" fill="#1c2531" stroke="#3a4a5f" vector-effect="non-scaling-stroke" stroke-width="1"/>`;
     for (const ln of KOIRA.shore) g += `<polyline points="${ln.map(p => p[0] + ',' + (-p[1])).join(' ')}" fill="none" stroke="#4a5b72" vector-effect="non-scaling-stroke" stroke-width="1.2"/>`;
@@ -2598,8 +2587,31 @@ const SIM = (() => {
     }
     for (const [k, im] of tileCache) if (!want.has(k)) { im.remove(); tileCache.delete(k); }
   }
+  // oma kaavio: lähimpien sektoriloistojen (enintään 4, alle 3 km) sektorit ja 1 km:n rajaviivat, saaret piirtyvät päälle
+  let secKey = '';
+  function drawSecs() {
+    const g = $('simSecs'); if (!g) return;
+    const near = KL.filter(L => L.sec.length > 1).map(L => ({ L, d: Math.hypot(L.p[0] - s.x, L.p[1] - s.y) }))
+      .filter(o => o.d < 3000).sort((a, b) => a.d - b.d).slice(0, 4).map(o => o.L);
+    const key = near.map(L => L.no).join(',');
+    if (key === secKey) return;
+    secKey = key;
+    const SR = 1000;
+    let h = '';
+    for (const L of near) {
+      const [lx, ly] = [L.p[0], -L.p[1]], pt = (a, r) => `${f1(lx + r * Math.sin(a * D2R))},${f1(ly - r * Math.cos(a * D2R))}`;
+      for (const [a0, a1, c] of L.sec) {
+        const o0 = a0 + 180, o1 = a1 + 180, large = norm(o1 - o0) > 180 ? 1 : 0;
+        h += `<path d="M${lx},${ly} L${pt(o0, SR)} A${SR},${SR} 0 ${large} 1 ${pt(o1, SR)} Z" fill="${COL[SECOL[c]] || COL.w}" fill-opacity="${c === 'v' ? .12 : .09}"/>`;
+      }
+      for (const b of [...new Set(L.sec.flatMap(x => [x[0], x[1]]))])
+        h += `<line x1="${lx}" y1="${ly}" x2="${pt(b + 180, SR).replace(',', '" y2="')}" stroke="#c9d3e0" stroke-opacity=".55" stroke-dasharray="14 8" vector-effect="non-scaling-stroke" stroke-width="1"><title>${L.name}: sektoriraja ${String(b).replace('.', ',')}°</title></line>`;
+    }
+    g.innerHTML = h;
+  }
   function drawChart(force) {
     if (!s.chart) return;
+    if (s.base === 'own') drawSecs();
     const svg = $('simChart'), Wv = ZOOMS[s.zoom];
     svg.style.setProperty('--fs', f1(Wv / 330 * 11) + 'px');
     svg.setAttribute('viewBox', `${f1(s.x - Wv / 2)} ${f1(-s.y - Wv / 2)} ${Wv} ${Wv}`);
@@ -3221,6 +3233,7 @@ const SIM = (() => {
   function init() {
     if (s.built) return;
     s.built = true;
+    secKey = '';
     $('simChart').innerHTML = `<rect x="-6000" y="-6000" width="12000" height="12000" fill="#0b1826"/><g id="simTiles"></g>${chartStatic()}<g id="simCps"></g><polyline id="simTrack" fill="none" stroke="#d9a34b" stroke-width="1.6" vector-effect="non-scaling-stroke"/><g id="simAis"></g><g id="simBoat"><path d="M0,-60 L28,35 0,20 -28,35Z" fill="#d9a34b" stroke="#0b1826" stroke-width="8"/></g>`;
     const nm = $('simChart').querySelector('.sim-names'); nm.id = 'simChartNames'; nm.setAttribute('hidden', '');
     const holdKey = (el, k) => {
