@@ -216,6 +216,10 @@ body.follower .wrap{max-width:none}
 .sim-sm{font-size:var(--fs,95px)}
 #simChart .sim-places text{font:italic 600 calc(var(--fs, 90px) * 1.25) var(--sans);fill:#8fa3bd;paint-order:stroke;stroke:#0b1826;stroke-width:calc(var(--fs, 90px) * .3);letter-spacing:.04em}
 .sim-zoom{position:absolute;top:8px;right:8px;z-index:1;background:var(--panel)}
+.sim-basesel{position:absolute;bottom:8px;left:8px;z-index:1;display:flex;gap:8px;align-items:center;background:rgba(12,19,29,.9);border:1px solid var(--line2);border-radius:8px;padding:3px 8px}
+.sim-basesel select{padding:3px 6px;font-size:13px;flex:0 0 auto;min-width:0}
+.sim-basesel .check{font-size:13px;gap:5px}
+.sim-basesel .check input{width:15px;height:15px}
 .sim-zoom button{padding:4px 9px;font-size:13px}
 .sim-cp{font:700 calc(var(--fs, 90px) * 1.3) var(--sans);fill:#d9a34b}
 
@@ -547,8 +551,8 @@ a{color:var(--brass)}
         <div class="card" id="simInfoCard" style="margin-top:12px"><label class="row" for="simMission" style="gap:10px"><span class="eyebrow" style="margin:0">Reitti</span><select id="simMission"></select></label><div id="simInfo" style="margin-top:12px"></div></div>
       </section>
       <aside class="side">
-        <div class="chart-box" id="simChartBox"><div class="seg sim-zoom" role="group" aria-label="Kartan mittakaava" id="simZoom"><button data-z="near" aria-pressed="false">2,5 km</button><button data-z="mid" aria-pressed="true">5 km</button><button data-z="far" aria-pressed="false">9 km</button></div><svg id="simChart" viewBox="0 0 2600 2600" role="img" aria-label="Kartta veneen ympäriltä"></svg></div>
-        <p class="credits" style="margin:0">Silmän korkeus 2,5 m, pystysuunta korostettu 6×. Saaret peittävät valot. Aineisto: Väylävirasto (CC BY 4.0), © OpenStreetMap-tekijät (ODbL). Harjoitus, ei navigointiväline.</p>
+        <div class="chart-box" id="simChartBox"><div class="sim-basesel"><select id="simBaseSel" aria-label="Pohjakartta"><option value="rannikko">Rannikkokartta</option><option value="sarjaA">Merikarttasarja A</option><option value="own">Oma kaavio</option></select><label class="check"><input type="checkbox" id="simDimIn"> Himmennä</label></div><div class="seg sim-zoom" role="group" aria-label="Kartan mittakaava" id="simZoom"><button data-z="near" aria-pressed="false">2,5 km</button><button data-z="mid" aria-pressed="true">5 km</button><button data-z="far" aria-pressed="false">9 km</button></div><svg id="simChart" viewBox="0 0 2600 2600" role="img" aria-label="Kartta veneen ympäriltä"></svg></div>
+        <p class="credits" style="margin:0">Silmän korkeus 2,5 m, pystysuunta korostettu 6×. Saaret peittävät valot. Aineisto: Väylävirasto (CC BY 4.0), © OpenStreetMap-tekijät (ODbL), merikartat © Traficom. Harjoitus, ei navigointiväline.</p>
       </aside>
     </div>
   </div>
@@ -623,7 +627,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.7', APP_BUILD = '__BUILD__';
+const APP_VERSION = '2.8', APP_BUILD = '__BUILD__';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
@@ -1979,7 +1983,7 @@ const SIM = (() => {
     ] },
   ];
   let MISSION = MISSIONS[Math.max(0, MISSIONS.findIndex(m => m.id === store.get('simMission', 'lintu')))];
-  const s = { zoom:'mid', x:0, y:0, hdg:0, v:0, rud:0, thr:0, rot:0, t:0, outT:0, groundings:0, cp:0, track:[], paused:false, aground:false, done:false,
+  const s = { base: store.get('simBase', 'rannikko'), dim: store.get('simDim', true), zoom:'mid', x:0, y:0, hdg:0, v:0, rud:0, thr:0, rot:0, t:0, outT:0, groundings:0, cp:0, track:[], paused:false, aground:false, done:false,
               scale:5, hold:null, keys:{}, look:0, peek:false, peeks:0, names:false, chart:true, enc:null, askEnc:true, ais:true, idOk:0, idN:0, decOk:0, decN:0, sigOk:0, sigN:0, collisions:0, markHits:0, last:performance.now(), t0:performance.now(), lastCast:null, cols:[], vis:[], built:false, keys:{} };
 
   function reset() {
@@ -2207,7 +2211,7 @@ const SIM = (() => {
     $('simPause').textContent = s.paused ? 'Jatka' : 'Tauko';
   }
   function chartStatic() {
-    let g = '';
+    let g = '<g id="simOwnChart">';
     for (const a of KOIRA.areas) g += `<polygon points="${a.r.map(p => p[0] + ',' + (-p[1])).join(' ')}" fill="#1a3350" fill-opacity=".32" stroke="#35587d" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
     for (const poly of KOIRA.land) g += `<polygon points="${poly.map(p => p[0] + ',' + (-p[1])).join(' ')}" fill="#1c2531" stroke="#3a4a5f" vector-effect="non-scaling-stroke" stroke-width="1"/>`;
     for (const ln of KOIRA.shore) g += `<polyline points="${ln.map(p => p[0] + ',' + (-p[1])).join(' ')}" fill="none" stroke="#4a5b72" vector-effect="non-scaling-stroke" stroke-width="1.2"/>`;
@@ -2223,6 +2227,7 @@ const SIM = (() => {
     for (const L of KL.slice(1)) g += `<g transform="translate(${L.p[0]},${-L.p[1]})">${chartSymbol(L, 1.2)}<title>${L.name} · ${L.chf}</title></g>`;
     g += `<path d="M0,-70 L16,-16 70,0 16,16 0,70 -16,16 -70,0 -16,-16Z" fill="#fff3d6" stroke="#0b1826" stroke-width="8"/>`;
     g += `<g class="sim-places">${PLACES.map(([n, x, y]) => `<text x="${f1(x)}" y="${f1(-y)}" text-anchor="middle">${n}</text>`).join('')}</g>`;
+    g += '</g>';
     g += `<g class="sim-names">${KL.map(L => `<text x="${L.p[0] + 70}" y="${-L.p[1] + 25}" class="kc-small sim-sm">${L.name}</text>`).join('')}</g>`;
     return g;
   }
@@ -2231,11 +2236,53 @@ const SIM = (() => {
     MISSION.cps.forEach((c, i) => g += `<g id="simCp${i}"><circle cx="${c.x}" cy="${-c.y}" r="${c.r}" fill="none" stroke="#d9a34b" stroke-width="1.4" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/><text x="${c.x}" y="${-c.y + 30}" class="sim-cp" text-anchor="middle">${i + 1}</text></g>`);
     return g;
   }
+  // --- merikarttatausta: Traficomin julkinen WMTS (EPSG:3857-tiilet sovitetaan paikalliseen metrikoordinaatistoon) ---
+  const BASES = {
+    rannikko: { name:'Rannikkokartta', layer:'Rannikkokartat%20public' },
+    sarjaA: { name:'Merikarttasarja A', layer:'Merikarttasarja%20A%20public' },
+    own: { name:'Oma kaavio' },
+  };
+  const tileCache = new Map();
+  let tileKey = '';
+  function toLocal(lon, lat) { return [(lon - LON0) * KX, (lat - LAT0) * 110540]; }
+  function drawTiles() {
+    const svg = $('simChart'), g = $('simTiles'); if (!g) return;
+    const base = BASES[s.base] || BASES.rannikko;
+    $('simOwnChart').style.display = base.layer ? 'none' : '';
+    g.style.filter = base.layer && s.dim ? 'brightness(.62) contrast(1.05) saturate(.85)' : '';
+    if (!base.layer) { g.innerHTML = ''; tileCache.clear(); tileKey = ''; return; }
+    const Wv = ZOOMS[s.zoom], px = Math.max(250, svg.clientWidth || 330), mpp = Wv / px;
+    const z = Math.max(11, Math.min(15, Math.round(Math.log2(78271.5 / mpp))));
+    const n = 2 ** z, half = Wv * .6;
+    const lonA = (s.x - half) / KX + LON0, lonB = (s.x + half) / KX + LON0;
+    const latA = (s.y - half) / 110540 + LAT0, latB = (s.y + half) / 110540 + LAT0;
+    const tx = (lon) => Math.floor((lon + 180) / 360 * n);
+    const ty = (lat) => Math.floor((1 - Math.asinh(Math.tan(lat * D2R)) / Math.PI) / 2 * n);
+    const x0 = tx(lonA), x1 = tx(lonB), y0 = ty(latB), y1 = ty(latA);
+    const key = `${s.base}/${z}/${x0}-${x1}/${y0}-${y1}/${s.dim}`;
+    if (key === tileKey) return;
+    tileKey = key;
+    const want = new Set();
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
+      const k = `${s.base}/${z}/${x}/${y}`; want.add(k);
+      if (tileCache.has(k)) continue;
+      const lon0 = x / n * 360 - 180, lon1 = (x + 1) / n * 360 - 180;
+      const lat0 = Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n))) / D2R, lat1 = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + 1) / n))) / D2R;
+      const [X0, Y0] = toLocal(lon0, lat0), [X1, Y1] = toLocal(lon1, lat1);
+      const im = document.createElementNS('http://www.w3.org/2000/svg', 'image');
+      im.setAttribute('href', `https://julkinen.traficom.fi/rasteripalvelu/wmts/rest/Traficom:${base.layer}//WGS84_Pseudo-Mercator/WGS84_Pseudo-Mercator:${z}/${y}/${x}?format=image/png`);
+      im.setAttribute('x', f1(X0)); im.setAttribute('y', f1(-Y0)); im.setAttribute('width', f1(X1 - X0 + .6)); im.setAttribute('height', f1(Y0 - Y1 + .6));
+      im.setAttribute('preserveAspectRatio', 'none');
+      g.appendChild(im); tileCache.set(k, im);
+    }
+    for (const [k, im] of tileCache) if (!want.has(k)) { im.remove(); tileCache.delete(k); }
+  }
   function drawChart(force) {
     if (!s.chart) return;
     const svg = $('simChart'), Wv = ZOOMS[s.zoom];
     svg.style.setProperty('--fs', f1(Wv / 330 * 11) + 'px');
     svg.setAttribute('viewBox', `${f1(s.x - Wv / 2)} ${f1(-s.y - Wv / 2)} ${Wv} ${Wv}`);
+    drawTiles();
     $('simTrack').setAttribute('points', s.track.map(p => f1(p[0]) + ',' + f1(-p[1])).join(' ') + ` ${f1(s.x)},${f1(-s.y)}`);
     $('simBoat').setAttribute('transform', `translate(${f1(s.x)},${f1(-s.y)}) rotate(${f1(s.hdg)}) scale(${f1(Wv / 1800)})`);
     MISSION.cps.forEach((c, i) => { const g = $('simCp' + i); if (g) g.setAttribute('opacity', i < s.cp ? .25 : 1); });
@@ -2840,7 +2887,7 @@ const SIM = (() => {
   function init() {
     if (s.built) return;
     s.built = true;
-    $('simChart').innerHTML = `<rect x="-6000" y="-6000" width="12000" height="12000" fill="#0b1826"/>${chartStatic()}<g id="simCps"></g><polyline id="simTrack" fill="none" stroke="#d9a34b" stroke-width="1.6" vector-effect="non-scaling-stroke"/><g id="simAis"></g><g id="simBoat"><path d="M0,-60 L28,35 0,20 -28,35Z" fill="#d9a34b" stroke="#0b1826" stroke-width="8"/></g>`;
+    $('simChart').innerHTML = `<rect x="-6000" y="-6000" width="12000" height="12000" fill="#0b1826"/><g id="simTiles"></g>${chartStatic()}<g id="simCps"></g><polyline id="simTrack" fill="none" stroke="#d9a34b" stroke-width="1.6" vector-effect="non-scaling-stroke"/><g id="simAis"></g><g id="simBoat"><path d="M0,-60 L28,35 0,20 -28,35Z" fill="#d9a34b" stroke="#0b1826" stroke-width="8"/></g>`;
     const nm = $('simChart').querySelector('.sim-names'); nm.id = 'simChartNames'; nm.setAttribute('hidden', '');
     const holdKey = (el, k) => {
       el.addEventListener('pointerdown', (e) => { e.preventDefault(); s.keys[k] = true; try { el.setPointerCapture(e.pointerId); } catch {} });
@@ -2878,6 +2925,9 @@ const SIM = (() => {
     });
     if (BC && !FOLLOWER) BC.onmessage = (ev) => handleMsg(ev.data);
     $('simPopBtn').onclick = popOut;
+    $('simBaseSel').value = s.base; $('simDimIn').checked = s.dim;
+    $('simBaseSel').onchange = () => { s.base = $('simBaseSel').value; store.set('simBase', s.base); tileKey = ''; drawChart(); };
+    $('simDimIn').onchange = () => { s.dim = $('simDimIn').checked; store.set('simDim', s.dim); tileKey = ''; drawChart(); };
     $('simRemoteBtn').onclick = startRemote;
     $('simMission').innerHTML = MISSIONS.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
     $('simMission').value = MISSION.id;
