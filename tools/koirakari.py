@@ -103,6 +103,16 @@ def main():
         })
     out_lights.sort(key=lambda l: l['no'] != LIGHT_NO)
 
+    # valaisemattomat viitat ja poijut (näkyvät yöllä vain varjoina)
+    marks = []
+    for f in tl:
+        p = f['properties']
+        if p['valaistu'] == 'K' or p['turvalaitetyyppifi'] not in ('Viitta', 'Poiju'):
+            continue
+        marks.append({'no': p['turvalaitenumero'], 'name': (p['nimifi'] or '').strip(), 'type': p['turvalaitetyyppifi'],
+                      'nav': p['navigointilajikoodi'], 'h': 2.5 if p['turvalaitetyyppifi'] == 'Viitta' else 2.0,
+                      'p': P(*f['geometry']['coordinates'][0])})
+
     lines = []
     for f in nl:
         p = f['properties']
@@ -127,13 +137,13 @@ def main():
         (land if closed and len(pts) > 3 else shore).append(pts)
 
     data = {'src': 'Väylävirasto (CC BY 4.0), © OpenStreetMap-tekijät (ODbL)', 'origin': [lon0, lat0],
-            'lights': out_lights, 'lines': lines, 'areas': areas, 'land': land, 'shore': shore}
+            'lights': out_lights, 'marks': marks, 'lines': lines, 'areas': areas, 'land': land, 'shore': shore}
     js = 'const KOIRA = ' + json.dumps(data, ensure_ascii=False, separators=(',', ':')) + ';'
     app = Path(__file__).resolve().parent.parent / 'src' / 'app.html'
     s = app.read_text()
     s = re.sub(r'/\* KOIRA-DATA \*/.*?/\* /KOIRA-DATA \*/', lambda m: '/* KOIRA-DATA */' + js + '/* /KOIRA-DATA */', s, flags=re.S)
     app.write_text(s)
-    print(f'valoja {len(out_lights)}, väylälinjoja {len(lines)}, väyläalueita {len(areas)}, saaria {len(land)}, rantaviivoja {len(shore)}, {len(js)//1024} kt')
+    print(f'valoja {len(out_lights)}, valaisemattomia merkkejä {len(marks)}, väylälinjoja {len(lines)}, väyläalueita {len(areas)}, saaria {len(land)}, rantaviivoja {len(shore)}, {len(js)//1024} kt')
 
 
 def fetch_coast():
