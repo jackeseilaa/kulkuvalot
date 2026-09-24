@@ -623,7 +623,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.5', APP_BUILD = '__BUILD__';
+const APP_VERSION = '2.6', APP_BUILD = '__BUILD__';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
@@ -1980,11 +1980,11 @@ const SIM = (() => {
   ];
   let MISSION = MISSIONS[Math.max(0, MISSIONS.findIndex(m => m.id === store.get('simMission', 'lintu')))];
   const s = { zoom:'mid', x:0, y:0, hdg:0, v:0, rud:0, thr:0, rot:0, t:0, outT:0, groundings:0, cp:0, track:[], paused:false, aground:false, done:false,
-              scale:5, hold:null, keys:{}, look:0, peek:false, peeks:0, names:false, chart:true, enc:null, askEnc:true, ais:true, idOk:0, idN:0, decOk:0, decN:0, sigOk:0, sigN:0, collisions:0, last:performance.now(), t0:performance.now(), lastCast:null, cols:[], vis:[], built:false, keys:{} };
+              scale:5, hold:null, keys:{}, look:0, peek:false, peeks:0, names:false, chart:true, enc:null, askEnc:true, ais:true, idOk:0, idN:0, decOk:0, decN:0, sigOk:0, sigN:0, collisions:0, markHits:0, last:performance.now(), t0:performance.now(), lastCast:null, cols:[], vis:[], built:false, keys:{} };
 
   function reset() {
     Object.assign(s, { x:MISSION.start.x, y:MISSION.start.y, hdg:MISSION.start.hdg, v:0, rud:0, thr:.6, rot:0, t:0, outT:0, groundings:0, cp:0,
-      track:[[MISSION.start.x, MISSION.start.y]], aground:false, done:false, paused:false, lastCast:null, hold:null, keys:{}, look:0, peek:false, peeks:0, enc:null, idOk:0, idN:0, decOk:0, decN:0, sigOk:0, sigN:0, collisions:0 });
+      track:[[MISSION.start.x, MISSION.start.y]], aground:false, done:false, paused:false, lastCast:null, hold:null, keys:{}, look:0, peek:false, peeks:0, enc:null, idOk:0, idN:0, decOk:0, decN:0, sigOk:0, sigN:0, collisions:0, markHits:0 });
     trafficReset(); $('simEnc').hidden = true;
     s.v = s.thr * 7 * KN;
     $('simCps').innerHTML = cpsSvg();
@@ -2010,6 +2010,7 @@ const SIM = (() => {
     }
     s.x = nx; s.y = ny; s.t += dt;
     checkCollision(); if (s.aground) return;
+    checkMarks(); if (s.aground) return;
     checkEncounters();
     if (!fairwayAt(s.x, s.y)) s.outT += dt;
     const lt = s.track[s.track.length - 1];
@@ -2033,14 +2034,14 @@ const SIM = (() => {
   }
   function finish() {
     s.done = true; s.thr = 0;
-    const res = { t:s.t, out:s.outT, g:s.groundings, p:s.peeks, d:Date.now() };
+    const res = { t:s.t, out:s.outT, g:s.groundings, mh:s.markHits, p:s.peeks, d:Date.now() };
     const best = store.get('simBest-' + MISSION.id, null);
     if (!best || score(res) > score(best)) store.set('simBest-' + MISSION.id, res);
     if (!s.peeks) { const bc = store.get('simClean-' + MISSION.id, null); if (!bc || score(res) > score(bc)) store.set('simClean-' + MISSION.id, res); }
-    banner('MAALISSA', `Aika ${mmss(s.t)} · väylän ulkopuolella ${mmss(s.outT)} · karilleajoja ${s.groundings} · törmäyksiä ${s.collisions} · kurkistuksia ${s.peeks}${s.idN ? ` · tunnistukset ${s.idOk}/${s.idN} · väistöratkaisut ${s.decOk}/${s.decN} · äänimerkit ${s.sigOk}/${s.sigN}` : ''}`, false, true);
+    banner('MAALISSA', `Aika ${mmss(s.t)} · väylän ulkopuolella ${mmss(s.outT)} · karilleajoja ${s.groundings} · törmäyksiä ${s.collisions} · osumia merkkeihin ${s.markHits} · kurkistuksia ${s.peeks}${s.idN ? ` · tunnistukset ${s.idOk}/${s.idN} · väistöratkaisut ${s.decOk}/${s.decN} · äänimerkit ${s.sigOk}/${s.sigN}` : ''}`, false, true);
     info();
   }
-  const score = (r) => 1000 - r.t / 6 - r.out * 2 - r.g * 150;
+  const score = (r) => 1000 - r.t / 6 - r.out * 2 - r.g * 150 - (r.mh || 0) * 100;
   const mmss = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 
   // --- yönäkymä ---
@@ -2238,6 +2239,7 @@ const SIM = (() => {
       <ol class="sim-steps">${MISSION.cps.map((c, i) => `<li class="${i < s.cp ? 'done' : i === s.cp ? 'cur' : ''}"><b>${c.name}</b>${i === s.cp && !s.done ? `<span>${c.hint}</span>` : ''}</li>`).join('')}</ol>
       ${s.idN ? `<p class="sector-hint">Lähestymistilanteet: tunnistit ${s.idOk}/${s.idN} alusta, väistöratkaisuja oikein ${s.decOk}/${s.decN}, äänimerkkejä oikein ${s.sigOk}/${s.sigN}${s.collisions ? `, yhteentörmäyksiä ${s.collisions}` : ''}.</p>` : ''}
       ${s.done ? `<p class="tip"><span class="verdict ok">Maalissa.</span> Aika ${mmss(s.t)}, väylän ulkopuolella ${mmss(s.outT)}, karilleajoja ${s.groundings}.</p>` : ''}
+      ${s.markHits ? `<p class="sector-hint">Osumia merkkeihin: ${s.markHits}</p>` : ''}
       <p class="sector-hint">Kurkistuksia tällä ajolla: ${s.peeks}${s.peeks ? '' : '. Ajat pelkkien valojen varassa'}.</p>
       ${(() => { const bc = store.get('simClean-' + MISSION.id, null); return bc ? `<p class="sector-hint">Paras ilman kurkistuksia: aika ${mmss(bc.t)}, väylän ulkopuolella ${mmss(bc.out)}, karilleajoja ${bc.g}</p>` : ''; })()}
       ${best ? `<p class="sector-hint">Paras suoritus: aika ${mmss(best.t)}, väylän ulkopuolella ${mmss(best.out)}, karilleajoja ${best.g}</p>` : ''}`;
@@ -2636,6 +2638,29 @@ const SIM = (() => {
     }
     return best;
   }
+  // viitat, poijut ja vedessä seisovat merkit: säde metreinä (veneen oma leveys lisätään)
+  const HITMARKS = [...KL.filter(L => ['Poiju', 'Viitta', 'Tutkamerkki'].includes(L.type)), ...KOIRA.marks]
+    .map(L => ({ L, x: L.p[0], y: L.p[1], r: L.type === 'Viitta' ? 1 : L.type === 'Tutkamerkki' ? 5 : 2.5 }));
+  const NAVNAME = { 1:'vasen sivumerkki', 2:'oikea sivumerkki', 3:'pohjoinen kardinaalimerkki', 4:'eteläinen kardinaalimerkki', 5:'läntinen kardinaalimerkki', 6:'itäinen kardinaalimerkki' };
+  const NAVTIP = {
+    1:'Väylän perussuuntaan kuljettaessa vasen sivumerkki jätetään vasemmalle puolelle. Vastakkaiseen suuntaan kuljettaessa se jää oikealle.',
+    2:'Väylän perussuuntaan kuljettaessa oikea sivumerkki jätetään oikealle puolelle. Vastakkaiseen suuntaan kuljettaessa se jää vasemmalle.',
+    3:'Pohjoinen kardinaalimerkki ohitetaan sen pohjoispuolelta. Merkin eteläpuolella on vaara.',
+    4:'Eteläinen kardinaalimerkki ohitetaan sen eteläpuolelta. Merkin pohjoispuolella on vaara.',
+    5:'Läntinen kardinaalimerkki ohitetaan sen länsipuolelta. Merkin itäpuolella on vaara.',
+    6:'Itäinen kardinaalimerkki ohitetaan sen itäpuolelta. Merkin länsipuolella on vaara.' };
+  function checkMarks() {
+    for (const M of HITMARKS) {
+      if (Math.abs(M.x - s.x) > 20 || Math.abs(M.y - s.y) > 20) continue;
+      if (Math.hypot(M.x - s.x, M.y - s.y) < M.r + 3 && !(M.grace > s.t)) {
+        M.grace = s.t + 45;
+        s.aground = true; s.markHits++; s.v = 0; s.rot = 0;
+        const L = M.L, kind = NAVNAME[L.nav] || (L.type === 'Tutkamerkki' ? 'tutkamerkki' : L.type.toLowerCase());
+        banner('OSUIT MERKKIIN', `${L.name || 'Nimetön merkki'} (${kind}${L.chf ? ', ' + L.chf : L.seq ? '' : ', valaisematon'}). ${NAVTIP[L.nav] || 'Merkin kohdalla on usein kari tai kivi.'} Peruuta ja ohita merkki sen osoittamalta puolelta.`, true);
+        return;
+      }
+    }
+  }
   function checkCollision() {
     for (const T of traffic) {
       if (Math.hypot(T.x - s.x, T.y - s.y) > 300) continue;
@@ -2722,7 +2747,7 @@ const SIM = (() => {
   function sendState(full) {
     if (!BC && !RC) return;
     tx({ type:'state', m: MISSION.id, x: s.x, y: s.y, hdg: s.hdg, v: s.v, cp: s.cp, done: s.done, aground: s.aground, t: s.t, outT: s.outT,
-      groundings: s.groundings, collisions: s.collisions, peeks: s.peeks, idOk: s.idOk, idN: s.idN, decOk: s.decOk, decN: s.decN, sigOk: s.sigOk, sigN: s.sigN,
+      groundings: s.groundings, collisions: s.collisions, markHits: s.markHits, peeks: s.peeks, idOk: s.idOk, idN: s.idN, decOk: s.decOk, decN: s.decN, sigOk: s.sigOk, sigN: s.sigN,
       names: s.names, ais: s.ais, track: full || s.track.length % 10 === 0 ? s.track : null, tn: s.track.length, tr: traffic.map(T => [T.x, T.y, T.hdg]), enc: encSnap(), banner: $('simBanner').hidden ? '' : $('simBanner').textContent });
   }
   // karttaikkuna
@@ -2764,7 +2789,7 @@ const SIM = (() => {
   let lastEncKey = '', lastInfoKey = '';
   function applyState(m) {
     if (m.m !== MISSION.id) { MISSION = MISSIONS.find(x => x.id === m.m) || MISSION; $('simMission').value = MISSION.id; $('simCps').innerHTML = cpsSvg(); }
-    Object.assign(s, { x: m.x, y: m.y, hdg: m.hdg, v: m.v, cp: m.cp, done: m.done, aground: m.aground, t: m.t, outT: m.outT, groundings: m.groundings, collisions: m.collisions,
+    Object.assign(s, { x: m.x, y: m.y, hdg: m.hdg, v: m.v, cp: m.cp, done: m.done, aground: m.aground, t: m.t, outT: m.outT, groundings: m.groundings, collisions: m.collisions, markHits: m.markHits,
       peeks: m.peeks, idOk: m.idOk, idN: m.idN, decOk: m.decOk, decN: m.decN, sigOk: m.sigOk, sigN: m.sigN, names: m.names, ais: m.ais });
     if (m.track) s.track = m.track; else if (s.track.length < m.tn) s.track.push([m.x, m.y]);
     m.tr.forEach((q, i) => { if (traffic[i]) { traffic[i].x = q[0]; traffic[i].y = q[1]; traffic[i].hdg = q[2]; } });
@@ -2772,7 +2797,7 @@ const SIM = (() => {
     drawChart(); drawAis();
     const ek = m.enc ? `${m.enc.ti}-${m.enc.step}` : '';
     if (ek !== lastEncKey) { lastEncKey = ek; encUi(); if (m.enc && m.enc.step === 1) { $('simEnc').classList.add('pulse'); setTimeout(() => $('simEnc').classList.remove('pulse'), 1600); } }
-    const ik = [m.m, m.cp, m.done, m.idN, m.decN, m.sigN, m.peeks, m.groundings, m.collisions].join('|');
+    const ik = [m.m, m.cp, m.done, m.idN, m.decN, m.sigN, m.peeks, m.groundings, m.collisions, m.markHits].join('|');
     if (ik !== lastInfoKey) { lastInfoKey = ik; info(); }
     $('fHdg').textContent = String(Math.round(m.hdg) % 360).padStart(3, '0') + '°';
     $('fSpd').textContent = (m.v / KN).toFixed(1).replace('.', ',');
@@ -2840,7 +2865,7 @@ const SIM = (() => {
     if (km) s.keys[km] = false;
     if (e.key === 'Shift') s.keys.fine = false;
   }
-  return { keyup, _clr: hullClearance, _s: s, _step: step, _tr: () => traffic, _m: () => MISSION, _set: (id) => { MISSION = MISSIONS.find(m => m.id === id); reset(); }, _fw: fairwayAt, init, key, show() { s.last = performance.now(); init(); castView(true); drawChart(); hud(); info(); } };
+  return { keyup, _hm: HITMARKS, _clr: hullClearance, _s: s, _step: step, _tr: () => traffic, _m: () => MISSION, _set: (id) => { MISSION = MISSIONS.find(m => m.id === id); reset(); }, _fw: fairwayAt, init, key, show() { s.last = performance.now(); init(); castView(true); drawChart(); hud(); info(); } };
 })();
 
 /* ---------- views ---------- */
