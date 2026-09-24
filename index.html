@@ -186,6 +186,8 @@ body.follower .wrap{max-width:none}
 #simEnc.pulse{animation:encpulse 1.6s ease}
 @keyframes encpulse{0%,40%{box-shadow:0 0 0 3px var(--brass)}100%{box-shadow:0 0 0 0 transparent}}
 @media (prefers-reduced-motion:reduce){#simEnc.pulse{animation:none}}
+.sim-slider{width:100%;accent-color:var(--brass);touch-action:none;height:28px}
+#simHold[aria-pressed="true"]{border-color:var(--brass);color:var(--brass)}
 .sig-row{display:flex;gap:6px;align-items:stretch}
 .sig-row>button:first-child{flex:1}
 .sig-play{flex:0 0 44px;border:1px solid var(--line2);background:var(--panel2);border-radius:8px;cursor:pointer;color:var(--brass);font-size:16px}
@@ -515,11 +517,13 @@ a{color:var(--brass)}
           <div class="sim-ctl">
             <span class="lbl">Peräsin <em id="simRudVal">keskellä</em></span>
             <div class="sim-rud"><i id="simRudBar"></i></div>
-            <div class="row"><button class="btn" id="simL" aria-label="Peräsin vasemmalle">◀</button><button class="btn" id="simC">Keskelle</button><button class="btn" id="simR" aria-label="Peräsin oikealle">▶</button></div>
+            <input type="range" id="simRudIn" min="-35" max="35" step="1" value="0" aria-label="Peräsin" class="sim-slider">
+            <div class="row"><button class="btn" id="simL" aria-label="Peräsin vasemmalle">◀</button><button class="btn" id="simC">Keskelle</button><button class="btn" id="simR" aria-label="Peräsin oikealle">▶</button><button class="btn" id="simHold" aria-pressed="false" title="Pitää kompassisuunnan (H). Nuolet muuttavat tavoitesuuntaa.">Pidä suunta</button></div>
           </div>
           <div class="sim-ctl sim-thr-wrap">
             <div class="sim-thr"><i id="simThrBar"></i></div>
             <div><span class="lbl">Kaasu <em id="simThrVal">60 %</em></span>
+            <input type="range" id="simThrIn" min="-30" max="100" step="1" value="60" aria-label="Kaasu" class="sim-slider">
             <div class="row"><button class="btn" id="simU" aria-label="Lisää kaasua">▲</button><button class="btn" id="simD" aria-label="Vähennä kaasua">▼</button></div></div>
           </div>
           <div class="sim-ctl">
@@ -539,7 +543,7 @@ a{color:var(--brass)}
           <label class="check"><input type="checkbox" id="simNames"> Näytä valojen nimet</label>
           <label class="check"><input type="checkbox" id="simEncIn" checked> Kysy lähestymistilanteissa</label>
           <label class="check"><input type="checkbox" id="simAisIn" checked> Liikenne kartalla (AIS)</label>
-          <span class="muted" style="font-size:13px">Näppäimet: ← → peräsin, ↑ ↓ kaasu, C peräsin keskelle, Q/E katse, W katse eteen, välilyönti pohjassa kurkistus, P tauko</span>
+          <span class="muted" style="font-size:13px">Näppäimet: ← → peräsin (pohjassa tasaisesti, Shift hienosäätö), ↑ ↓ kaasu, H pidä suunta, C peräsin keskelle, Q/E katse, W katse eteen, välilyönti pohjassa kurkistus, P tauko</span>
         </div>
         <div class="card" id="simInfoCard" style="margin-top:12px"><label class="row" for="simMission" style="gap:10px"><span class="eyebrow" style="margin:0">Reitti</span><select id="simMission"></select></label><div id="simInfo" style="margin-top:12px"></div></div>
       </section>
@@ -586,7 +590,7 @@ a{color:var(--brass)}
         <p class="eyebrow">Yöajo</p>
         <h2>Aja itse pimeässä</h2>
         <p>Ohjaat venettä todellisilla Helsingin väylillä. Näet pelkät valot sekä saarten siluetit kaupungin valokajoa vasten, ja saaret peittävät takanaan olevat valot. Tehtävänä on ajaa Lintupaaden väylää pitkin Länsisatamaan. Käytä apuna Koirakarin sektoreita, kardinaalimerkkejä ja sivumerkkejä.</p>
-        <p>Näppäimet: ← → peräsin, ↑ ↓ kaasu, C peräsin keskelle, P tauko. Puhelimessa ohjataan painikkeilla. Piilota kartta, niin ajat pelkkien valojen varassa.</p>
+        <p>Näppäimet: ← → peräsin (pohjassa tasaisesti, Shift hienosäätö), ↑ ↓ kaasu, H pidä suunta, C peräsin keskelle, P tauko. Puhelimessa ohjataan painikkeilla. Piilota kartta, niin ajat pelkkien valojen varassa.</p>
       </div>
       <div class="card">
         <p class="eyebrow">Näppäimet</p>
@@ -1951,11 +1955,11 @@ const SIM = (() => {
   ];
   let MISSION = MISSIONS[Math.max(0, MISSIONS.findIndex(m => m.id === store.get('simMission', 'lintu')))];
   const s = { zoom:'mid', x:0, y:0, hdg:0, v:0, rud:0, thr:0, rot:0, t:0, outT:0, groundings:0, cp:0, track:[], paused:false, aground:false, done:false,
-              scale:5, look:0, peek:false, peeks:0, names:false, chart:true, enc:null, askEnc:true, ais:true, idOk:0, idN:0, decOk:0, decN:0, sigOk:0, sigN:0, collisions:0, last:performance.now(), t0:performance.now(), lastCast:null, cols:[], vis:[], built:false, keys:{} };
+              scale:5, hold:null, keys:{}, look:0, peek:false, peeks:0, names:false, chart:true, enc:null, askEnc:true, ais:true, idOk:0, idN:0, decOk:0, decN:0, sigOk:0, sigN:0, collisions:0, last:performance.now(), t0:performance.now(), lastCast:null, cols:[], vis:[], built:false, keys:{} };
 
   function reset() {
     Object.assign(s, { x:MISSION.start.x, y:MISSION.start.y, hdg:MISSION.start.hdg, v:0, rud:0, thr:.6, rot:0, t:0, outT:0, groundings:0, cp:0,
-      track:[[MISSION.start.x, MISSION.start.y]], aground:false, done:false, paused:false, lastCast:null, look:0, peek:false, peeks:0, enc:null, idOk:0, idN:0, decOk:0, decN:0, sigOk:0, sigN:0, collisions:0 });
+      track:[[MISSION.start.x, MISSION.start.y]], aground:false, done:false, paused:false, lastCast:null, hold:null, keys:{}, look:0, peek:false, peeks:0, enc:null, idOk:0, idN:0, decOk:0, decN:0, sigOk:0, sigN:0, collisions:0 });
     trafficReset(); $('simEnc').hidden = true;
     s.v = s.thr * 7 * KN;
     $('simCps').innerHTML = cpsSvg();
@@ -1969,6 +1973,7 @@ const SIM = (() => {
     trafficStep(dt);
     const vt = (s.thr >= 0 ? s.thr * 7 : s.thr * 7) * KN;
     s.v += (vt - s.v) * Math.min(1, dt / 4);
+    if (s.hold != null) { const err = n180(s.hold - s.hdg); s.rud = clamp(err * 2 - s.rot * 2.5, -30, 30); }
     const rotT = .05 * s.rud * s.v;                              // °/s
     s.rot += (rotT - s.rot) * Math.min(1, dt / 1.5);
     s.hdg = norm(s.hdg + s.rot * dt);
@@ -1998,7 +2003,7 @@ const SIM = (() => {
     while (i > 0 && back < 80) { back += Math.hypot(s.track[i][0] - s.track[i - 1][0], s.track[i][1] - s.track[i - 1][1]); i--; }
     const p = s.track[Math.max(0, i)];
     s.x = p[0]; s.y = p[1]; s.track.length = Math.max(1, i + 1);
-    s.aground = false; s.v = 0; s.thr = 0; s.rud = 0; s.rot = 0; banner('');
+    s.aground = false; s.v = 0; s.thr = 0; s.rud = 0; s.rot = 0; s.hold = null; banner('');
     castView(true);
   }
   function finish() {
@@ -2164,7 +2169,11 @@ const SIM = (() => {
     st.textContent = fw ? `Väylällä · ${String(fw.d ?? '').replace('.', ',')} m` : 'Väylän ulkopuolella';
     st.className = 'sim-chip ' + (fw ? 'ok' : 'warn');
     $('simRudBar').style.left = `${50 + s.rud / 35 * 50}%`;
-    $('simRudVal').textContent = s.rud === 0 ? 'keskellä' : `${Math.abs(s.rud)}° ${s.rud > 0 ? 'oikealle' : 'vasemmalle'}`;
+    if (document.activeElement !== $('simRudIn')) $('simRudIn').value = Math.round(s.rud);
+    if (document.activeElement !== $('simThrIn')) $('simThrIn').value = Math.round(s.thr * 100);
+    $('simHold').setAttribute('aria-pressed', String(s.hold != null));
+    $('simHold').textContent = s.hold != null ? `Autopilotti ${String(Math.round(s.hold) % 360).padStart(3, '0')}°` : 'Pidä suunta';
+    const rr = Math.round(s.rud); $('simRudVal').textContent = rr === 0 ? 'keskellä' : `${Math.abs(rr)}° ${rr > 0 ? 'oikealle' : 'vasemmalle'}`;
     $('simThrBar').style.height = `${Math.abs(s.thr) * 100}%`;
     $('simThrBar').classList.toggle('rev', s.thr < 0);
     $('simThrVal').textContent = s.thr === 0 ? 'vapaa' : s.thr < 0 ? `taakse ${Math.round(-s.thr * 100)} %` : `${Math.round(s.thr * 100)} %`;
@@ -2225,12 +2234,19 @@ const SIM = (() => {
   // --- ohjaus ---
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const act = {
-    left: () => { s.rud = clamp(s.rud - 5, -35, 35); },
-    right: () => { s.rud = clamp(s.rud + 5, -35, 35); },
-    up: () => { s.thr = clamp(Math.round((s.thr + .1) * 10) / 10, -.3, 1); },
-    down: () => { s.thr = clamp(Math.round((s.thr - .1) * 10) / 10, -.3, 1); },
-    center: () => { s.rud = 0; },
+    center: () => { s.rud = 0; s.hold = null; },
+    hold: () => { s.hold = s.hold == null ? Math.round(s.hdg) % 360 : null; },
   };
+  // jatkuva ohjaus: näppäin tai painike pohjassa muuttaa peräsintä (tai autopilotin suuntaa) tasaisesti
+  function controls(rd) {
+    const k = s.keys, fine = k.fine;
+    const dir = (k.right ? 1 : 0) - (k.left ? 1 : 0), thr = (k.up ? 1 : 0) - (k.down ? 1 : 0);
+    if (dir) {
+      if (s.hold != null) s.hold = norm(s.hold + dir * (fine ? 3 : 12) * rd);
+      else s.rud = clamp(s.rud + dir * (fine ? 8 : 28) * rd, -35, 35);
+    }
+    if (thr) s.thr = clamp(s.thr + thr * (fine ? .1 : .35) * rd, -.3, 1);
+  }
   function setLook(v) { s.look = Math.max(-180, Math.min(180, v)); castView(true); drawTape(); hud(); }
   function lookAt(T) { setLook(n180(brg(s.x, s.y, T.x, T.y) - s.hdg)); }
   function key(e) {
@@ -2247,8 +2263,11 @@ const SIM = (() => {
       if (e.key === 'Enter' && s.enc.step === 4) { encDone(); e.preventDefault(); return true; }
       return false;
     }
-    const m = { ArrowLeft:'left', ArrowRight:'right', ArrowUp:'up', ArrowDown:'down', c:'center', C:'center', '0':'center' }[e.key];
-    if (m) { act[m](); hud(); e.preventDefault(); return true; }
+    const km = { ArrowLeft:'left', ArrowRight:'right', ArrowUp:'up', ArrowDown:'down' }[e.key];
+    if (km) { s.keys[km] = true; s.keys.fine = e.shiftKey; e.preventDefault(); return true; }
+    if (e.key === 'Shift') { s.keys.fine = true; return false; }
+    if (e.key === 'c' || e.key === 'C' || e.key === '0') { act.center(); hud(); e.preventDefault(); return true; }
+    if (e.key === 'h' || e.key === 'H') { act.hold(); hud(); e.preventDefault(); return true; }
     if (e.key === 'q' || e.key === 'Q') { setLook(s.look - 10); e.preventDefault(); return true; }
     if (e.key === 'e' || e.key === 'E') { setLook(s.look + 10); e.preventDefault(); return true; }
     if (e.key === 'w' || e.key === 'W') { setLook(0); e.preventDefault(); return true; }
@@ -2548,12 +2567,14 @@ const SIM = (() => {
     if (FOLLOWER) return;
     if (st.view !== 'sim' && !s.popped) return;
     const now = performance.now();
-    let dt = Math.min(.25, (now - s.last) / 1000) * s.scale;
+    const rd = Math.min(.25, (now - s.last) / 1000);
+    let dt = rd * s.scale;
     s.last = now;
+    if (!s.enc) controls(rd);
     while (dt > 0) { const h = Math.min(.1, dt); step(h); dt -= h; }
     castView(false); drawLamps(now); drawTraffic(); hud(); drawChart(); drawAis();
     if (s.popped && now - (s.lastSend || 0) > 180) { s.lastSend = now; sendState(); }
-    if (s.popped && now - (s.lastPing || 0) > 6000) setPopped(false);
+    if (s.popped && now - (s.lastPing || 0) > 20000) setPopped(false);
   }
 
   // --- kaksi näyttöä: pääikkuna (näkymä ja ohjaimet) ja karttaikkuna (kartta ja kysymykset) ---
@@ -2569,6 +2590,8 @@ const SIM = (() => {
     else if (m.type === 'back') { if (s.aground) backOff(); }
     else if (m.type === 'hello' || m.type === 'ping') { s.lastPing = performance.now(); if (!s.popped) setPopped(true); if (m.type === 'hello') sendState(true); }
     else if (m.type === 'bye') setPopped(false);
+    // vastaa heti, ettei karttaikkuna jää odottamaan pääikkunan ajastinta (Safari hidastaa taustaikkunaa)
+    if (s.popped) { sendState(m.type === 'hello'); s.lastPing = performance.now(); }
   }
   function setPopped(on) {
     s.popped = on;
@@ -2604,7 +2627,7 @@ const SIM = (() => {
     let got = false;
     BC.onmessage = (ev) => { const m = ev.data; if (m.type === 'state') { got = true; applyState(m); } };
     BC.postMessage({ type:'hello' });
-    setInterval(() => BC.postMessage({ type:'ping' }), 2000);
+    setInterval(() => BC.postMessage({ type:'ping' }), 1000);
     window.addEventListener('pagehide', () => BC.postMessage({ type:'bye' }));
     setTimeout(() => { if (!got) { $('fBanner').hidden = false; $('fBanner').textContent = 'Pääikkunaa ei löydy. Avaa Yöajo ensin ja paina siellä ”Kartta toiseen ikkunaan”.'; } }, 2500);
   }
@@ -2636,8 +2659,16 @@ const SIM = (() => {
     s.built = true;
     $('simChart').innerHTML = `<rect x="-6000" y="-6000" width="12000" height="12000" fill="#0b1826"/>${chartStatic()}<g id="simCps"></g><polyline id="simTrack" fill="none" stroke="#d9a34b" stroke-width="1.6" vector-effect="non-scaling-stroke"/><g id="simAis"></g><g id="simBoat"><path d="M0,-60 L28,35 0,20 -28,35Z" fill="#d9a34b" stroke="#0b1826" stroke-width="8"/></g>`;
     const nm = $('simChart').querySelector('.sim-names'); nm.id = 'simChartNames'; nm.setAttribute('hidden', '');
-    bindHold($('simL'), act.left); bindHold($('simR'), act.right); bindHold($('simU'), act.up); bindHold($('simD'), act.down);
+    const holdKey = (el, k) => {
+      el.addEventListener('pointerdown', (e) => { e.preventDefault(); s.keys[k] = true; try { el.setPointerCapture(e.pointerId); } catch {} });
+      ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => el.addEventListener(t, () => { s.keys[k] = false; }));
+    };
+    holdKey($('simL'), 'left'); holdKey($('simR'), 'right'); holdKey($('simU'), 'up'); holdKey($('simD'), 'down');
+    $('simRudIn').oninput = () => { s.hold = null; s.rud = +$('simRudIn').value; hud(); };
+    $('simThrIn').oninput = () => { s.thr = +$('simThrIn').value / 100; hud(); };
+    $('simHold').onclick = () => { act.hold(); hud(); };
     $('simC').onclick = () => { act.center(); hud(); };
+    window.addEventListener('blur', () => { s.keys = {}; });
     $('simPause').onclick = () => { if (s.enc) return; s.paused = !s.paused; hud(); };
     bindHold($('simLookL'), () => setLook(s.look - 5)); bindHold($('simLookR'), () => setLook(s.look + 5));
     $('simLookC').onclick = () => setLook(0);
@@ -2671,7 +2702,13 @@ const SIM = (() => {
     if (FOLLOWER) { initFollower(); return; }
     setInterval(tick, 40);
   }
-  function keyup(e) { if (st.view === 'sim' && e.key === ' ') { setPeek(false); e.preventDefault(); } }
+  function keyup(e) {
+    if (st.view !== 'sim') return;
+    if (e.key === ' ') { setPeek(false); e.preventDefault(); }
+    const km = { ArrowLeft:'left', ArrowRight:'right', ArrowUp:'up', ArrowDown:'down' }[e.key];
+    if (km) s.keys[km] = false;
+    if (e.key === 'Shift') s.keys.fine = false;
+  }
   return { keyup, _s: s, _step: step, _tr: () => traffic, _m: () => MISSION, _set: (id) => { MISSION = MISSIONS.find(m => m.id === id); reset(); }, _fw: fairwayAt, init, key, show() { s.last = performance.now(); init(); castView(true); drawChart(); hud(); info(); } };
 })();
 
