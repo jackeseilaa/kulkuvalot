@@ -701,7 +701,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.31', APP_BUILD = '25.9.2026 12:50';
+const APP_VERSION = '2.32', APP_BUILD = '25.9.2026 13:03';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
@@ -1853,8 +1853,9 @@ function kDrawBoat() {
 
 // nimetyt (lähimmät) valot: rengas valon ympärille ja viiva valosta nimeen, jotta nimi yhdistyy oikeaan valoon
 function lightRing(v, maxY, main) {
-  const col = main ? '#d9a34b' : '#9aa6b8', rr = Math.max(9, v.r * 2.2), ty = Math.min(maxY, v.wy + 16) - 12;
-  return `<circle cx="${f1(v.x)}" cy="${f1(v.y)}" r="${f1(rr)}" fill="none" stroke="${col}" stroke-width="${main ? 2 : 1.3}" stroke-opacity=".9"/>` +
+  // rengas selvästi valon ja sen hehkun ulkopuolella ja katkoviivana, ettei se peitä pientä kaukaista valoa
+  const col = main ? '#d9a34b' : '#9aa6b8', rr = Math.max(17, v.r * 4.2), ty = Math.min(maxY, v.wy + 16) - 12;
+  return `<circle cx="${f1(v.x)}" cy="${f1(v.y)}" r="${f1(rr)}" fill="none" stroke="${col}" stroke-width="${main ? 1.6 : 1.1}" stroke-opacity="${main ? .8 : .55}" stroke-dasharray="4 3"/>` +
     (v.label && ty > v.y + rr + 2 ? `<line x1="${f1(v.x)}" y1="${f1(v.y + rr)}" x2="${f1(v.x)}" y2="${f1(ty)}" stroke="${col}" stroke-width="1" stroke-opacity=".6" stroke-dasharray="2 3"/>` : '');
 }
 function kComputeVisible() {
