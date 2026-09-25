@@ -682,7 +682,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.24', APP_BUILD = '__BUILD__';
+const APP_VERSION = '2.26', APP_BUILD = '__BUILD__';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
@@ -1754,6 +1754,12 @@ function kDrawBoat() {
   if (KFOLLOW) kFollowHead();
 }
 
+// nimetyt (lähimmät) valot: rengas valon ympärille ja viiva valosta nimeen, jotta nimi yhdistyy oikeaan valoon
+function lightRing(v, maxY, main) {
+  const col = main ? '#d9a34b' : '#9aa6b8', rr = Math.max(9, v.r * 2.2), ty = Math.min(maxY, v.wy + 16) - 12;
+  return `<circle cx="${f1(v.x)}" cy="${f1(v.y)}" r="${f1(rr)}" fill="none" stroke="${col}" stroke-width="${main ? 2 : 1.3}" stroke-opacity=".9"/>` +
+    (v.label && ty > v.y + rr + 2 ? `<line x1="${f1(v.x)}" y1="${f1(v.y + rr)}" x2="${f1(v.x)}" y2="${f1(ty)}" stroke="${col}" stroke-width="1" stroke-opacity=".6" stroke-dasharray="2 3"/>` : '');
+}
 function kComputeVisible() {
   kVis = [];
   for (const L of SL) {
@@ -1779,7 +1785,7 @@ function kComputeVisible() {
   }
   kVis.sort((a, b) => b.d - a.d);
   const g = $('kLights');
-  g.innerHTML = kVis.map(v => `<g data-no="${v.L.no}" class="klamp"><circle cx="${f1(v.x)}" cy="${f1(v.y)}" r="22" fill="transparent"/><g class="lamp"></g>${v.label ? `<text x="${f1(v.x)}" y="${f1(Math.min(394, v.wy + 16))}" class="kn-lbl${v.L.no === KMAIN.no ? ' main' : ''}" text-anchor="middle">${v.txt}</text>` : ''}</g>`).join('');
+  g.innerHTML = kVis.map(v => `<g data-no="${v.L.no}" class="klamp"><circle cx="${f1(v.x)}" cy="${f1(v.y)}" r="22" fill="transparent"/>${v.label ? lightRing(v, 394, v.L.no === KMAIN.no) : ''}<g class="lamp"></g>${v.label ? `<text x="${f1(v.x)}" y="${f1(Math.min(394, v.wy + 16))}" class="kn-lbl${v.L.no === KMAIN.no ? ' main' : ''}" text-anchor="middle">${v.txt}</text>` : ''}</g>`).join('');
   $('kRefl').innerHTML = kVis.map(v => `<g data-no="${v.L.no}" class="lamp"></g>`).join('');
   kDrawMark();
   if (ks.peek) kCastLand();
@@ -1838,7 +1844,7 @@ function kCastLand() {
   // viitat ja poijut: pieni värillinen hahmo, näkyy vain hämärässä
   let mk = '';
   const marks = [];
-  for (const L of SD.marks) {
+  for (const L of [...SD.marks, ...SL.filter(x => x.type === 'Poiju' || x.type === 'Viitta')]) {   // valaisemattomat ja valaistut
     const dx = L.p[0] - ks.x, dy = L.p[1] - ks.y, d = Math.hypot(dx, dy);
     if (d < 20 || d > 2500) continue;
     const b = brg(ks.x, ks.y, L.p[0], L.p[1]), rel = n180(b - ks.hdg);
@@ -1847,7 +1853,8 @@ function kCastLand() {
   }
   marks.sort((a, b) => b.d - a.d);
   for (const m of marks) {
-    const top = KHY - kElev(2.4, m.d) * KV, bot = KHY - kElev(0, m.d) * KV, w = Math.max(1.5, Math.min(8, 900 / m.d)), h = bot - top;
+    const buoy = m.L.type === 'Poiju';                                // poiju matala ja leveä, viitta korkea ja kapea
+    const top = KHY - kElev(buoy ? 1.8 : 2.4, m.d) * KV, bot = KHY - kElev(0, m.d) * KV, w = Math.max(1.5, Math.min(8, 900 / m.d)) * (buoy ? 2.4 : 1), h = bot - top;
     const c = CARD[m.L.nav];
     const cols = c ? c.bands : m.L.nav === 1 ? [K.red] : m.L.nav === 2 ? [K.green] : ['#5b6470'];
     mk += cols.map((col, i) => `<rect x="${f1(m.x - w / 2)}" y="${f1(top + i * h / cols.length)}" width="${f1(w)}" height="${f1(h / cols.length + .3)}" fill="${col}"/>`).join('');
@@ -2697,7 +2704,7 @@ const SIM = (() => {
       if (placed.some(p => Math.abs(p.x - v.x) < (p.w + w) / 2)) continue;
       placed.push({ x:v.x, w }); v.label = true;
     }
-    $('simLights').innerHTML = s.vis.map(v => `<g class="klamp"><g class="lamp"></g>${v.label ? `<text x="${f1(v.x)}" y="${f1(Math.min(H - 4, v.wy + 16))}" class="kn-lbl" text-anchor="middle">${v.txt}</text>` : ''}</g>`).join('');
+    $('simLights').innerHTML = s.vis.map(v => `<g class="klamp">${v.label ? lightRing(v, H - 4) : ''}<g class="lamp"></g>${v.label ? `<text x="${f1(v.x)}" y="${f1(Math.min(H - 4, v.wy + 16))}" class="kn-lbl" text-anchor="middle">${v.txt}</text>` : ''}</g>`).join('');
     $('simRefl').innerHTML = s.vis.map(() => `<g></g>`).join('');
     drawTape();
   }
