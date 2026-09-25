@@ -203,6 +203,9 @@ body.kfollower .wrap{max-width:none;padding-block:8px}
 body.kfollower .koira-grid{grid-template-columns:minmax(0,1fr)}
 body.kfollower .koira-grid>aside .chart-box{display:flex;justify-content:center}
 body.kfollower #kChart{height:calc(100vh - 70px);width:auto;max-width:100%}
+.rm-wait{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;background:rgba(6,10,17,.94)}
+.rm-wait b{display:block;font-size:22px;margin-bottom:8px;color:var(--brass)}
+.rm-wait p{margin:0;color:var(--muted);max-width:40ch}
 .sim-follow{position:absolute;right:10px;bottom:10px;z-index:2}
 .kf-head{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline;margin-bottom:8px}
 #view-sim.popped .sim-grid>aside,#view-sim.popped #simEnc,#view-sim.popped #simInfoCard{display:none!important}
@@ -698,7 +701,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.30', APP_BUILD = '25.9.2026 12:34';
+const APP_VERSION = '2.31', APP_BUILD = '25.9.2026 12:50';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
@@ -2346,36 +2349,68 @@ function kInitLightSearch() {
   $('kLightIn').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); go(); } });
 }
 kInitLightSearch();
-// --- sektorikartta toisessa ikkunassa (BroadcastChannel) ---
-const KBC = ('BroadcastChannel' in window) ? new BroadcastChannel('kulkuvalot-sektori') : null;
-let KRC = null;                                                      // PeerJS-yhteys toiseen laitteeseen
-function kTx(m) { try { KBC && KBC.postMessage(m); } catch {} if (KRC && KRC.open) { try { KRC.send(m); } catch {} } }
-function kLoadScript(src, test) {
+// --- yhteys toiseen laitteeseen (PeerJS): yksi yhteys kaikille osioille. Pääkone kertoo avoimen osion ('view'),
+// ja iPad vaihtaa näkymänsä sen mukaan niin kauan kuin yhteys on auki ---
+const RM = { peer:null, conn:null, code:null, fns:[] };
+function rmLoad(src, test) {
   return new Promise((res, rej) => { if (test()) return res(); const sc = document.createElement('script'); sc.src = src; sc.onload = () => res(); sc.onerror = () => rej(new Error(src)); document.head.appendChild(sc); });
 }
-const kLoadPeer = () => kLoadScript('https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js', () => !!window.Peer);
-const kLoadQr = () => kLoadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js', () => !!window.qrcode);
+RM.loadPeer = () => rmLoad('https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js', () => !!window.Peer);
+RM.loadQr = () => rmLoad('https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js', () => !!window.qrcode);
+RM.listen = (fn) => RM.fns.push(fn);
+RM.emit = (m) => RM.fns.forEach(f => { try { f(m); } catch (e) { console.error(e); } });
+RM.send = (m) => { const c = RM.conn; if (c && c.open) { try { c.send(m); } catch {} } };
+RM.open = () => !!(RM.conn && RM.conn.open);
+// pääkone: sama koodi pysyy koko istunnon ajan, joten iPad voi yhdistää uudelleen samalla QR-koodilla
+RM.host = async (onReady) => {
+  await RM.loadPeer();
+  if (RM.peer && !RM.peer.destroyed && RM.code) { onReady(RM.code); return; }
+  const code = String(Math.floor(1000 + Math.random() * 9000)), peer = new Peer('kulkuvalot-' + code, { debug: 0 });
+  RM.peer = peer;
+  peer.on('open', () => { RM.code = code; onReady(code); });
+  peer.on('error', (e) => { if (e.type === 'unavailable-id') { RM.peer = null; RM.host(onReady); } else RM.emit({ type:'_error', e: e.type }); });
+  peer.on('disconnected', () => { try { peer.reconnect(); } catch {} });
+  peer.on('connection', (conn) => {
+    conn.on('open', () => { if (RM.conn && RM.conn !== conn) { try { RM.conn.close(); } catch {} } RM.conn = conn; RM.emit({ type:'_open' }); RM.send({ type:'view', v: st.view }); });
+    conn.on('data', (m) => RM.emit(m));
+    conn.on('close', () => { if (RM.conn === conn) { RM.conn = null; RM.emit({ type:'_close' }); } });
+  });
+};
+// iPad: yhdistä pääkoneeseen koodilla
+RM.join = async (code) => {
+  RM.code = code;
+  try { await RM.loadPeer(); } catch { RM.emit({ type:'_error', e:'lib' }); return; }
+  const peer = new Peer({ debug: 0 });
+  RM.peer = peer;
+  peer.on('open', () => {
+    const conn = peer.connect('kulkuvalot-' + code, { serialization: 'json', reliable: true });
+    conn.on('open', () => { RM.conn = conn; RM.emit({ type:'_open' }); });
+    conn.on('data', (m) => RM.emit(m));
+    conn.on('close', () => { RM.conn = null; RM.emit({ type:'_close' }); });
+  });
+  peer.on('error', (e) => RM.emit({ type:'_error', e: e.type }));
+};
+// --- sektorikartta toisessa ikkunassa (BroadcastChannel) ---
+const KBC = ('BroadcastChannel' in window) ? new BroadcastChannel('kulkuvalot-sektori') : null;
+function kTx(m) { try { KBC && KBC.postMessage(m); } catch {} RM.send(m); }
 async function kStartRemote() {
   const st2 = $('kLightStatus');
-  try { await kLoadPeer(); } catch { st2.textContent = 'Yhteyskirjaston lataus epäonnistui. Tarkista verkkoyhteys.'; return; }
-  if (ks.peer) { try { ks.peer.destroy(); } catch {} }
-  const code = String(Math.floor(1000 + Math.random() * 9000));
-  const peer = new Peer('kulkuvalot-k' + code, { debug: 0 });
-  ks.peer = peer;
-  peer.on('open', () => kShowPair(code));
-  peer.on('error', (e) => { if (e.type === 'unavailable-id') kStartRemote(); else st2.textContent = 'Yhteysvirhe: ' + e.type + '. Yritä uudelleen.'; });
-  peer.on('connection', (conn) => {
-    conn.on('open', () => { KRC = conn; $('kPair').hidden = true; ks.lastPing = performance.now(); kSetPopped(true); st2.textContent = 'iPad yhdistetty. Kartta näkyy nyt siellä.'; });
-    conn.on('data', (m) => kHandle(m));
-    conn.on('close', () => { if (KRC === conn) { KRC = null; kSetPopped(false); st2.textContent = 'Yhteys toiseen laitteeseen katkesi.'; } });
-  });
+  if (RM.open()) { st2.textContent = 'iPad on jo yhdistetty. Kartta näkyy siellä.'; return; }
+  try { await RM.host(kShowPair); } catch { st2.textContent = 'Yhteyskirjaston lataus epäonnistui. Tarkista verkkoyhteys.'; }
 }
+if (!KFOLLOW) RM.listen((m) => {
+  const st2 = $('kLightStatus');
+  if (m.type === '_open') { $('kPair').hidden = true; if (st.view === 'koira') st2.textContent = 'iPad yhdistetty. Kartta näkyy nyt siellä.'; }
+  else if (m.type === '_close') setTimeout(() => { if (!RM.open()) { kSetPopped(false); if (st.view === 'koira') st2.textContent = 'Yhteys toiseen laitteeseen katkesi.'; } }, 5000);
+  else if (m.type === '_error' && st.view === 'koira') st2.textContent = 'Yhteysvirhe: ' + m.e + '. Yritä uudelleen.';
+  else if (/^k/.test(m.type)) kHandle(m);
+});
 async function kShowPair(code) {
   const url = location.origin + location.pathname + '#sektorikartta-' + code, box = $('kPair');
   box.innerHTML = `<b>Kartta toiselle laitteelle</b><p>Avaa iPadin kameralla QR-koodi tai kirjoita Safariin osoite:</p><div id="kQr"></div><code>${url.replace(/^https?:\/\//, '')}</code><p class="muted">Koodi <b style="font:600 22px var(--mono);color:var(--brass)">${code}</b> · molempien laitteiden on oltava verkossa.</p><div class="row" style="justify-content:center"><button class="btn" id="kPairClose">Sulje</button></div>`;
   box.hidden = false;
   $('kPairClose').onclick = () => { box.hidden = true; };
-  try { await kLoadQr(); const q = qrcode(0, 'M'); q.addData(url); q.make(); $('kQr').innerHTML = q.createSvgTag({ cellSize: 5, margin: 2, scalable: true }); } catch {}
+  try { await RM.loadQr(); const q = qrcode(0, 'M'); q.addData(url); q.make(); $('kQr').innerHTML = q.createSvgTag({ cellSize: 5, margin: 2, scalable: true }); } catch {}
 }
 function kSend() {
   if (KFOLLOW || !ks.popped) return;
@@ -2424,16 +2459,14 @@ if (KFOLLOW) {
   addEventListener('pagehide', () => kTx({ type:'kbye' }));
   if (KREMOTE) {
     ks.fstatus = 'Yhdistetään laitteeseen, koodi ' + KREMOTE + ' …';
-    kLoadPeer().then(() => {
-      const peer = new Peer({ debug: 0 });
-      peer.on('open', () => {
-        const conn = peer.connect('kulkuvalot-k' + KREMOTE, { serialization: 'json', reliable: true });
-        conn.on('open', () => { KRC = conn; ks.fstatus = ''; kTx({ type:'khello' }); });
-        conn.on('data', (m) => kHandle(m));
-        conn.on('close', () => { ks.fstatus = 'Yhteys katkesi. Lue QR-koodi uudelleen pääkoneelta.'; kFollowHead(); });
-      });
-      peer.on('error', (e) => { ks.fstatus = e.type === 'peer-unavailable' ? `Koodia ${KREMOTE} ei löydy. Paina pääkoneella ”Kartta iPadille” ja lue uusi QR-koodi.` : 'Yhteysvirhe: ' + e.type; kFollowHead(); });
-    }).catch(() => { ks.fstatus = 'Yhteyskirjaston lataus epäonnistui. Tarkista verkkoyhteys.'; kFollowHead(); });
+    RM.listen((m) => {
+      if (m.type === '_open') { ks.fstatus = ''; kTx({ type:'khello' }); }
+      else if (m.type === '_close') ks.fstatus = 'Yhteys katkesi. Lue QR-koodi uudelleen pääkoneelta.';
+      else if (m.type === '_error') ks.fstatus = m.e === 'peer-unavailable' ? `Koodia ${KREMOTE} ei löydy. Paina pääkoneella ”Kartta iPadille” ja lue uusi QR-koodi.` : m.e === 'lib' ? 'Yhteyskirjaston lataus epäonnistui. Tarkista verkkoyhteys.' : 'Yhteysvirhe: ' + m.e;
+      else if (/^k/.test(m.type)) kHandle(m);
+      kFollowHead();
+    });
+    RM.join(KREMOTE);
   }
   kFollowHead();
 }
@@ -3524,35 +3557,25 @@ const SIM = (() => {
 
   // --- kaksi näyttöä: pääikkuna (näkymä ja ohjaimet) ja karttaikkuna (kartta ja kysymykset) ---
   const BC = ('BroadcastChannel' in window) ? new BroadcastChannel('kulkuvalot-sim') : null;
-  let RC = null;                                                    // yhteys toiseen laitteeseen
-  function tx(m) { if (BC) BC.postMessage(m); if (RC && RC.open) { try { RC.send(m); } catch {} } }
-  function loadScript(src, test) {
-    return new Promise((res, rej) => { if (test()) return res(); const sc = document.createElement('script'); sc.src = src; sc.onload = () => res(); sc.onerror = () => rej(new Error(src)); document.head.appendChild(sc); });
-  }
-  const loadPeer = () => loadScript('https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js', () => !!window.Peer);
-  const loadQr = () => loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js', () => !!window.qrcode);
+  function tx(m) { if (BC) BC.postMessage(m); RM.send(m); }            // RM: yhteys toiseen laitteeseen
   // pääikkuna: pariliitos toiseen laitteeseen koodilla
   async function startRemote() {
-    try { await loadPeer(); } catch { flash('Yhteyskirjaston lataus epäonnistui. Tarkista verkkoyhteys.', 'VIRHE'); return; }
-    if (s.peer) { try { s.peer.destroy(); } catch {} }
-    const code = String(Math.floor(1000 + Math.random() * 9000));
-    const peer = new Peer('kulkuvalot-' + code, { debug: 0 });
-    s.peer = peer;
-    peer.on('open', () => showPair(code));
-    peer.on('error', (e) => { if (e.type === 'unavailable-id') { startRemote(); } else { flash('Yhteysvirhe: ' + e.type + '. Yritä uudelleen.', 'VIRHE'); } });
-    peer.on('connection', (conn) => {
-      conn.on('open', () => { RC = conn; $('simPair').hidden = true; flash('iPad yhdistetty. Kartta ja kysymykset näkyvät nyt siellä.'); });
-      conn.on('data', (m) => handleMsg(m));
-      conn.on('close', () => { if (RC === conn) { RC = null; setPopped(false); flash('Yhteys toiseen laitteeseen katkesi.', 'YHTEYS'); } });
-    });
+    if (RM.open()) { flash('iPad on jo yhdistetty. Kartta ja kysymykset näkyvät siellä.'); return; }
+    try { await RM.host(showPair); } catch { flash('Yhteyskirjaston lataus epäonnistui. Tarkista verkkoyhteys.', 'VIRHE'); }
   }
+  if (!FOLLOWER) RM.listen((m) => {
+    if (m.type === '_open') { $('simPair').hidden = true; if (st.view === 'sim') flash('iPad yhdistetty. Kartta ja kysymykset näkyvät nyt siellä.'); }
+    else if (m.type === '_close') setTimeout(() => { if (!RM.open()) { setPopped(false); if (st.view === 'sim') flash('Yhteys toiseen laitteeseen katkesi.', 'YHTEYS'); } }, 5000);   // iPad voi vaihtaa näkymää
+    else if (m.type === '_error') { if (st.view === 'sim') flash('Yhteysvirhe: ' + m.e + '. Yritä uudelleen.', 'VIRHE'); }
+    else if (m.type !== 'view' && !/^k/.test(m.type)) handleMsg(m);
+  });
   async function showPair(code) {
     const url = location.origin + location.pathname + '#simkartta-' + code;
     const box = $('simPair');
     box.innerHTML = `<b>Kartta toiselle laitteelle</b><p>Avaa iPadin kameralla QR-koodi tai kirjoita Safariin osoite:</p><div id="simQr"></div><code>${url.replace(/^https?:\/\//, '')}</code><p class="muted">Koodi <b style="font:600 22px var(--mono);color:var(--brass)">${code}</b> · molempien laitteiden on oltava verkossa.</p><div class="row" style="justify-content:center"><button class="btn" id="simPairClose">Sulje</button></div>`;
     box.hidden = false;
     $('simPairClose').onclick = () => { box.hidden = true; };
-    try { await loadQr(); const q = qrcode(0, 'M'); q.addData(url); q.make(); $('simQr').innerHTML = q.createSvgTag({ cellSize: 5, margin: 2, scalable: true }); } catch {}
+    try { await RM.loadQr(); const q = qrcode(0, 'M'); q.addData(url); q.make(); $('simQr').innerHTML = q.createSvgTag({ cellSize: 5, margin: 2, scalable: true }); } catch {}
   }
   function act2(m) { if (FOLLOWER) tx(m); else handleMsg(m); }
   function handleMsg(m) {
@@ -3579,7 +3602,7 @@ const SIM = (() => {
     return { ti: traffic.indexOf(e.T), shown: e.shown, step: e.step, opts: e.opts, pick1: e.pick1, pick2: e.pick2, pick3: e.pick3, sig: e.sig, sopts: e.sopts, cls: e.cls };
   }
   function sendState(full) {
-    if (!BC && !RC) return;
+    if (!BC && !RM.open()) return;
     tx({ type:'state', m: MISSION.id, x: s.x, y: s.y, hdg: s.hdg, v: s.v, cp: s.cp, done: s.done, aground: s.aground, t: s.t, outT: s.outT,
       dep: s.depth, groundings: s.groundings, collisions: s.collisions, markHits: s.markHits, peeks: s.peeks, idOk: s.idOk, idN: s.idN, decOk: s.decOk, decN: s.decN, sigOk: s.sigOk, sigN: s.sigN,
       names: s.names, ais: s.ais, track: full || s.track.length % 10 === 0 ? s.track : null, tn: s.track.length, tr: traffic.map(T => [T.x, T.y, T.hdg]), enc: encSnap(), banner: $('simBanner').hidden ? '' : $('simBanner').textContent });
@@ -3608,16 +3631,13 @@ const SIM = (() => {
     const fb = (t) => { $('fBanner').hidden = false; $('fBanner').textContent = t; };
     if (REMOTE_CODE) {
       fb('Yhdistetään laitteeseen, koodi ' + REMOTE_CODE + ' …');
-      loadPeer().then(() => {
-        const peer = new Peer({ debug: 0 });
-        peer.on('open', () => {
-          const conn = peer.connect('kulkuvalot-' + REMOTE_CODE, { serialization: 'json', reliable: true });
-          conn.on('open', () => { RC = conn; tx({ type:'hello' }); });
-          conn.on('data', onState);
-          conn.on('close', () => fb('Yhteys katkesi. Avaa QR-koodi uudelleen pääkoneella.'));
-        });
-        peer.on('error', (e) => fb(e.type === 'peer-unavailable' ? 'Koodia ' + REMOTE_CODE + ' ei löydy. Paina pääkoneella ”Kartta iPadille” ja lue uusi QR-koodi.' : 'Yhteysvirhe: ' + e.type));
-      }).catch(() => fb('Yhteyskirjaston lataus epäonnistui. Tarkista verkkoyhteys.'));
+      RM.listen((m) => {
+        if (m.type === '_open') tx({ type:'hello' });
+        else if (m.type === '_close') fb('Yhteys katkesi. Avaa QR-koodi uudelleen pääkoneella.');
+        else if (m.type === '_error') fb(m.e === 'peer-unavailable' ? 'Koodia ' + REMOTE_CODE + ' ei löydy. Paina pääkoneella ”Kartta iPadille” ja lue uusi QR-koodi.' : m.e === 'lib' ? 'Yhteyskirjaston lataus epäonnistui. Tarkista verkkoyhteys.' : 'Yhteysvirhe: ' + m.e);
+        else onState(m);
+      });
+      RM.join(REMOTE_CODE);
     } else if (!BC) { fb('Selaimesi ei tue kahden ikkunan tilaa.'); return; }
     tx({ type:'hello' });
     setInterval(() => tx({ type:'ping' }), 1000);
@@ -3744,6 +3764,7 @@ function setView(v) {
   if (v === 'koira') kShow();
   if (v === 'sim') SIM.show();
   if (!FOLLOWER && !KFOLLOW && location.hash.slice(1) !== v) history.replaceState(null, '', '#' + v);
+  if (!FOLLOWER && !KFOLLOW) RM.send({ type:'view', v });
 }
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => setView(b.dataset.view));
 
@@ -3781,6 +3802,22 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+// iPad: pääkoneen osion mukaan kartta vaihtuu yöajon ja sektoriloiston välillä; muissa osioissa odotetaan
+if ((FOLLOWER && REMOTE_CODE) || (KFOLLOW && KREMOTE)) {
+  const mine = FOLLOWER ? 'sim' : 'koira', NAMES = { harjoittelu:'Harjoittelu', tehtavat:'Tehtävät', tentti:'Tentti', turva:'Turvalaitteet', ohje:'Ohje' };
+  document.body.insertAdjacentHTML('beforeend', '<div class="rm-wait" id="rmWait" hidden></div>');
+  RM.listen((m) => {
+    if (m.type !== 'view') return;
+    if (m.v === mine) { $('rmWait').hidden = true; return; }
+    if (m.v === 'sim' || m.v === 'koira') {
+      location.replace(location.href.split('#')[0] + (m.v === 'sim' ? '#simkartta-' : '#sektorikartta-') + RM.code);
+      location.reload();
+      return;
+    }
+    $('rmWait').innerHTML = `<div><b>Pääkoneella on auki ${NAMES[m.v] || m.v}</b><p>Kartta tulee tähän, kun avaat pääkoneella Yöajon tai Sektoriloiston. Yhteys pysyy auki.</p></div>`;
+    $('rmWait').hidden = false;
+  });
+}
 const initial = location.hash.slice(1);
 setView(FOLLOWER ? 'sim' : KFOLLOW ? 'koira' : VIEWS.includes(initial) ? initial : 'harjoittelu');
 })();
