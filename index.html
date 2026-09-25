@@ -697,7 +697,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.26', APP_BUILD = '25.9.2026 09:39';
+const APP_VERSION = '2.27', APP_BUILD = '25.9.2026 10:06';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
@@ -1716,7 +1716,22 @@ function kBuildChart() {
   for (const L of SL.filter(x => x !== KMAIN)) {
     const [x, y] = L.p;
     s += `<g transform="translate(${x},${-y})">${chartSymbol(L, 2.1)}<title>${L.name} · ${L.type} · ${L.chf}</title></g>`;
-    names += `<text x="${x + 110}" y="${-y + 20}" class="kc-small">${kName(L)}</text>`;
+  }
+  // kartan nimet: vain loistot, tutkamerkit ja linjat (linjamerkkipari yhdellä nimellä), ei poijuja eikä viittoja; ei päällekkäisiä
+  const cand = SL.filter(L => L !== KMAIN && L.type !== 'Poiju' && L.type !== 'Viitta').map(L => {
+    const line = L.type === 'Linjamerkki';
+    const base = line ? L.name.replace(/\b(ylempi|alempi|itäinen|läntinen|pohjoinen|eteläinen|etu|taka)\b/gi, '').replace(/\s+/g, ' ').trim() : L.name;
+    return { L, line, base, pr: line ? 2 : /Sektori|majakka/i.test(L.type) ? 0 : 1 };
+  }).sort((a, b) => a.pr - b.pr);
+  const boxes = [{ x0: 0, x1: 110 + KMAIN.name.length * 72, y0: -200, y1: 60 }];   // pääloiston nimi
+  for (const c of cand) {
+    if (c.line && c.base === KMAIN.name) continue;
+    const txt = c.line ? `${c.base} (linja)` : c.L.name, [x, y] = c.L.p;
+    const b = { x0: x + 100, x1: x + 110 + txt.length * 66, y0: -y - 110, y1: -y + 45 };
+    if (c.line && cand.some(o => o.placed && o.line && o.base === c.base)) continue;
+    if (boxes.some(o => b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0)) continue;
+    boxes.push(b); c.placed = true;
+    names += `<text x="${x + 110}" y="${-y + 20}" class="kc-small">${txt}</text>`;
   }
   s += '</g><g id="kRouteLine"></g>';
   s += `<g id="kChartNames" hidden>${names}</g>`;
