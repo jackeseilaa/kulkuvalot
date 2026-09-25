@@ -177,6 +177,11 @@ select{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;
 #view-koira.popped .koira-grid{grid-template-columns:minmax(0,1fr)}
 #view-koira.popped .koira-grid>aside{display:none!important}
 #kNightBox.reveal #kLand{fill:#1f2922}
+#kChart.tiles .ksec{fill-opacity:.07}
+#kChart.tiles .ksec.v{fill-opacity:.14}
+#kChart.tiles .kbnd{stroke:#0b1826;stroke-opacity:.7}
+#kChart.tiles .kc-lbl{fill:#0b1826;opacity:.85}
+#kChart.tiles .kc-name,#kChart.tiles .kc-small{fill:#0b1826;stroke:#fff;stroke-width:24px;paint-order:stroke}
 #kNightBox .sky-dusk,#kNightBox .water-dusk{transition:opacity .18s ease}
 .kmark-lbl{font:700 15px var(--sans);fill:#d9a34b}
 #kPeek{touch-action:none;user-select:none;-webkit-user-select:none}
@@ -207,8 +212,8 @@ body.follower .wrap{max-width:none}
 #simHold[aria-pressed="true"]{border-color:var(--brass);color:var(--brass)}
 .sim-pair{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(6,10,17,.96);border:1px solid var(--brass);border-radius:12px;padding:14px 18px;display:grid;gap:8px;justify-items:center;text-align:center;max-width:92%;z-index:3}
 .sim-pair p{margin:0}
-.sim-pair #simQr{width:180px;height:180px;background:#fff;border-radius:6px;padding:4px}
-.sim-pair #simQr svg{width:100%;height:100%;display:block}
+.sim-pair #simQr,.sim-pair #kQr{width:180px;height:180px;background:#fff;border-radius:6px;padding:4px}
+.sim-pair #simQr svg,.sim-pair #kQr svg{width:100%;height:100%;display:block}
 .sim-pair code{font:500 13px var(--mono);color:#dfe6f0;word-break:break-all}
 .sig-row{display:flex;gap:6px;align-items:stretch}
 .sig-row>button:first-child{flex:1}
@@ -464,11 +469,13 @@ a{color:var(--brass)}
           <div class="stage-tag">YÖNÄKYMÄ VENEESTÄ</div>
           <div class="stage-bearing" id="kHdg"></div>
           <div class="stage-hint" id="kEyeNote"></div>
+          <div class="sim-pair" id="kPair" hidden></div>
         </div>
     <div class="row" id="kViewRow" style="margin:-4px 0 12px">
       <button class="btn" id="kPeek" title="Pidä pohjassa (välilyönti)">Kurkista</button>
       <button class="btn" id="kMarkBtn" aria-pressed="false" title="Merkitsee seurattavan loiston yönäkymään">Korosta loisto</button>
       <button class="btn" id="kPopBtn" title="Avaa kartta omaan ikkunaan toiselle näytölle">Kartta toiseen ikkunaan</button>
+      <button class="btn" id="kRemoteBtn" title="Yhdistä iPad tai toinen laite QR-koodilla">Kartta iPadille</button>
       <span class="muted" style="font-size:14px">Välilyönti pohjassa näyttää hämäränäkymän.</span>
     </div>
     <div class="koira-grid">
@@ -675,7 +682,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.21', APP_BUILD = '__BUILD__';
+const APP_VERSION = '2.22', APP_BUILD = '__BUILD__';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
@@ -1616,8 +1623,9 @@ function routePos(R, t) {
   return [cx + lx * o, cy + ly * o];
 }
 
-const KFOLLOW = location.hash === '#sektorikartta';          // sektorikartta toisessa ikkunassa
-const ks = { base: store.get('kBase', 'own'), dim: store.get('kDim', true), mark: store.get('kMark', false), peek:false, popped:false, eye:2.5, mode:'free', x:-900, y:-1020, hdg:0, names:false, playing:false, t:0, route:0, speed:1, q:null, qType:'sector', score:{ n:0, ok:0 }, t0: performance.now(), last: performance.now(), built:false };
+const KFOLLOW = location.hash.startsWith('#sektorikartta');
+const KREMOTE = (location.hash.match(/^#sektorikartta-(\d{4,6})$/) || [])[1] || null;   // karttana toisella laitteella          // sektorikartta toisessa ikkunassa
+const ks = { base: store.get('kBase', 'own'), dim: store.get('kDim', false), mark: store.get('kMark', false), peek:false, popped:false, eye:2.5, mode:'free', x:-900, y:-1020, hdg:0, names:false, playing:false, t:0, route:0, speed:1, q:null, qType:'sector', score:{ n:0, ok:0 }, t0: performance.now(), last: performance.now(), built:false };
 // silmän korkeus ja pystysuunnan mittakaava: 72° näkökenttä 1000 px leveydelle, pystysuunta korostettu 6×
 const KHY = 230, KVX = 6, KV = 1000 / 72 * KVX;
 const kDrop = (d) => d * d / (2 * 6371000) * .87;             // maan kaarevuus ja valon taittuminen
@@ -1654,11 +1662,11 @@ function kBuildChart() {
   const R = 6000, pt = (a, r) => [f1(r * Math.sin(a * D2R)), f1(-r * Math.cos(a * D2R))];
   for (const [a0, a1, c] of KMAIN.sec) {
     const o0 = a0 + 180, o1 = a1 + 180, col = COL[SECOL[c]], p0 = pt(o0, R), p1 = pt(o1, R), large = norm(o1 - o0) > 180 ? 1 : 0;
-    s += `<path d="M0,0 L${p0} A${R},${R} 0 ${large} 1 ${p1} Z" fill="${col}" fill-opacity="${c === 'v' ? .2 : .13}"/>`;
+    s += `<path class="ksec${c === 'v' ? ' v' : ''}" d="M0,0 L${p0} A${R},${R} 0 ${large} 1 ${p1} Z" fill="${col}" fill-opacity="${c === 'v' ? .2 : .13}"/>`;
   }
   for (const b of [...new Set(KMAIN.sec.flatMap(x => [x[0], x[1]]))]) {
     const p = pt(b + 180, R);
-    s += `<line x1="0" y1="0" x2="${p[0]}" y2="${p[1]}" stroke="#c9d3e0" stroke-opacity=".35" vector-effect="non-scaling-stroke" stroke-width="1"/>`;
+    s += `<line class="kbnd" x1="0" y1="0" x2="${p[0]}" y2="${p[1]}" stroke="#c9d3e0" stroke-opacity=".35" vector-effect="non-scaling-stroke" stroke-width="1"/>`;
   }
   for (const b of [...new Set(KMAIN.sec.flatMap(x => [x[0], x[1]]))]) {
     const p = pt(b + 180, 1750);
@@ -1690,6 +1698,7 @@ function kDrawTiles() {
   const g = $('kTiles'); if (!g) return;
   const layer = KBASES[ks.base];
   $('kOwnBase').style.display = layer ? 'none' : '';
+  $('kChart').classList.toggle('tiles', !!layer);                   // merikartalla sektorit vain kevyesti, ettei kartan värit muutu
   g.style.filter = layer && ks.dim ? 'brightness(.62) contrast(1.05) saturate(.85)' : '';
   if (!layer) { g.innerHTML = ''; kTileKey = ''; return; }
   const [lon0, lat0] = SD.origin, kx = 111320 * Math.cos(lat0 * D2R), svg = $('kChart');
@@ -2202,7 +2211,35 @@ function kInitLightSearch() {
 kInitLightSearch();
 // --- sektorikartta toisessa ikkunassa (BroadcastChannel) ---
 const KBC = ('BroadcastChannel' in window) ? new BroadcastChannel('kulkuvalot-sektori') : null;
-function kTx(m) { try { KBC && KBC.postMessage(m); } catch {} }
+let KRC = null;                                                      // PeerJS-yhteys toiseen laitteeseen
+function kTx(m) { try { KBC && KBC.postMessage(m); } catch {} if (KRC && KRC.open) { try { KRC.send(m); } catch {} } }
+function kLoadScript(src, test) {
+  return new Promise((res, rej) => { if (test()) return res(); const sc = document.createElement('script'); sc.src = src; sc.onload = () => res(); sc.onerror = () => rej(new Error(src)); document.head.appendChild(sc); });
+}
+const kLoadPeer = () => kLoadScript('https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js', () => !!window.Peer);
+const kLoadQr = () => kLoadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js', () => !!window.qrcode);
+async function kStartRemote() {
+  const st2 = $('kLightStatus');
+  try { await kLoadPeer(); } catch { st2.textContent = 'Yhteyskirjaston lataus epäonnistui. Tarkista verkkoyhteys.'; return; }
+  if (ks.peer) { try { ks.peer.destroy(); } catch {} }
+  const code = String(Math.floor(1000 + Math.random() * 9000));
+  const peer = new Peer('kulkuvalot-k' + code, { debug: 0 });
+  ks.peer = peer;
+  peer.on('open', () => kShowPair(code));
+  peer.on('error', (e) => { if (e.type === 'unavailable-id') kStartRemote(); else st2.textContent = 'Yhteysvirhe: ' + e.type + '. Yritä uudelleen.'; });
+  peer.on('connection', (conn) => {
+    conn.on('open', () => { KRC = conn; $('kPair').hidden = true; ks.lastPing = performance.now(); kSetPopped(true); st2.textContent = 'iPad yhdistetty. Kartta näkyy nyt siellä.'; });
+    conn.on('data', (m) => kHandle(m));
+    conn.on('close', () => { if (KRC === conn) { KRC = null; kSetPopped(false); st2.textContent = 'Yhteys toiseen laitteeseen katkesi.'; } });
+  });
+}
+async function kShowPair(code) {
+  const url = location.origin + location.pathname + '#sektorikartta-' + code, box = $('kPair');
+  box.innerHTML = `<b>Kartta toiselle laitteelle</b><p>Avaa iPadin kameralla QR-koodi tai kirjoita Safariin osoite:</p><div id="kQr"></div><code>${url.replace(/^https?:\/\//, '')}</code><p class="muted">Koodi <b style="font:600 22px var(--mono);color:var(--brass)">${code}</b> · molempien laitteiden on oltava verkossa.</p><div class="row" style="justify-content:center"><button class="btn" id="kPairClose">Sulje</button></div>`;
+  box.hidden = false;
+  $('kPairClose').onclick = () => { box.hidden = true; };
+  try { await kLoadQr(); const q = qrcode(0, 'M'); q.addData(url); q.make(); $('kQr').innerHTML = q.createSvgTag({ cellSize: 5, margin: 2, scalable: true }); } catch {}
+}
 function kSend() {
   if (KFOLLOW || !ks.popped) return;
   kTx({ type:'kstate', no: KMAIN.no, x: ks.x, y: ks.y, hdg: ks.hdg, mode: ks.mode, route: ks.route, hide: !!(ks.mode === 'quiz' && ks.q && !ks.q.answered), names: ks.names });
@@ -2217,10 +2254,10 @@ function kFollowHead() {
   const b = brg(ks.x, ks.y, 0, 0), d = Math.hypot(ks.x, ks.y);
   $('kfHead').innerHTML = `<p class="eyebrow" style="margin:0">Sektoriloisto · kartta <span class="ver">${VER_TEXT}</span></p><b>${KMAIN.name}, ${KMAIN.chf}</b>` +
     (ks.q && !ks.q.answered ? '<span class="muted">Kartta näytetään, kun olet vastannut.</span>' : `<span class="muted">Suuntima loistoon ${fmtDeg(b)} · ${(d / 1000).toFixed(2).replace('.', ',')} km</span>`) +
-    (ks.mode === 'free' ? '<span class="muted">Vedä venettä kartalla.</span>' : '');
+    (ks.mode === 'free' ? '<span class="muted">Vedä venettä kartalla.</span>' : '') + (ks.fstatus ? `<span class="verdict bad">${ks.fstatus}</span>` : '');
 }
-if (KBC) KBC.onmessage = async (ev) => {
-  const m = ev.data || {};
+if (KBC) KBC.onmessage = (ev) => kHandle(ev.data || {});
+async function kHandle(m) {
   if (KFOLLOW) {
     if (m.type !== 'kstate') return;
     ks.lastState = performance.now();
@@ -2234,17 +2271,32 @@ if (KBC) KBC.onmessage = async (ev) => {
     kDrawRouteLine(); kDrawBoat();
     return;
   }
-  if (m.type === 'kping' || m.type === 'khello') { ks.lastPing = performance.now(); if (!ks.popped) kSetPopped(true); else kSend(); }
+  if (m.type === 'kping' || m.type === 'khello') { ks.lastPing = performance.now(); if (!ks.popped) kSetPopped(true); else if (m.type === 'khello') kSend(); }
   else if (m.type === 'kbye') kSetPopped(false);
   else if (m.type === 'kboat' && ks.mode === 'free') kSetBoat(m.x, m.y);
-};
+}
 if (KFOLLOW) {
   document.body.classList.add('kfollower');
   document.title = 'Kulkuvalot · sektorikartta';
   $('kfHead').hidden = false;
   kTx({ type:'khello' });
   addEventListener('pagehide', () => kTx({ type:'kbye' }));
+  if (KREMOTE) {
+    ks.fstatus = 'Yhdistetään laitteeseen, koodi ' + KREMOTE + ' …';
+    kLoadPeer().then(() => {
+      const peer = new Peer({ debug: 0 });
+      peer.on('open', () => {
+        const conn = peer.connect('kulkuvalot-k' + KREMOTE, { serialization: 'json', reliable: true });
+        conn.on('open', () => { KRC = conn; ks.fstatus = ''; kTx({ type:'khello' }); });
+        conn.on('data', (m) => kHandle(m));
+        conn.on('close', () => { ks.fstatus = 'Yhteys katkesi. Lue QR-koodi uudelleen pääkoneelta.'; kFollowHead(); });
+      });
+      peer.on('error', (e) => { ks.fstatus = e.type === 'peer-unavailable' ? `Koodia ${KREMOTE} ei löydy. Paina pääkoneella ”Kartta iPadille” ja lue uusi QR-koodi.` : 'Yhteysvirhe: ' + e.type; kFollowHead(); });
+    }).catch(() => { ks.fstatus = 'Yhteyskirjaston lataus epäonnistui. Tarkista verkkoyhteys.'; kFollowHead(); });
+  }
+  kFollowHead();
 }
+$('kRemoteBtn').onclick = kStartRemote;
 $('kPopBtn').onclick = () => {
   const w = window.open(location.href.split('#')[0] + '#sektorikartta', 'kulkuvalot-sektori', 'width=950,height=1000');
   if (!w) $('kLightStatus').textContent = 'Selain esti ikkunan avaamisen. Salli ponnahdusikkunat tälle sivulle.';
