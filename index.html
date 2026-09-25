@@ -649,7 +649,7 @@ a{color:var(--brass)}
         <h2>Mikä valo näkyy mistäkin</h2>
         <ul>
           <li><b>Mastovalo</b>: valkoinen, näkyy 225° keulan suuntaan</li>
-          <li><b>Sivuvalot</b>: vihreä oikealla (styyrpuuri), punainen vasemmalla (paapuuri), kumpikin 112,5°. Valot näkyvät 1–3° keulan yli, joten kun näet molemmat, alus tulee suoraan kohti.</li>
+          <li><b>Sivuvalot</b>: vihreä oikealla (styyrpuuri), punainen vasemmalla (paapuuri), kumpikin 112,5°. Valot näkyvät 1–3° keulan yli, joten kun näet molemmat, alus tulee suoraan kohti. Samoin 22,5° poikkiviivan takana sivuvalo ja perävalo näkyvät vaihtumiskohdassa hetken yhtä aikaa, koska valot sammuvat vähitellen muutaman asteen sektorinsa ulkopuolella.</li>
           <li><b>Perävalo</b>: valkoinen, näkyy 135° taakse</li>
           <li><b>Hinausvalo</b>: keltainen, sama sektori kuin perävalolla</li>
           <li><b>Ympäri näköpiirin näkyvä valo</b>: näkyy 360°</li>
@@ -665,7 +665,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.17', APP_BUILD = '24.9.2026 15:24';
+const APP_VERSION = '2.18', APP_BUILD = '25.9.2026 07:24';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
@@ -693,16 +693,20 @@ const ar = (c, x, z, y = 0, f) => Lt(c,'all',x,y,z,f);
 const stack = (cols, x, ztop, gap, y = 0) => cols.map((c, i) => ar(c, x, ztop - i * gap, y));
 
 // Sivuvalot näkyvät käytännössä 1–3° keulan yli (COLREG liite I), joten suoraan edestä näkyy molemmat
-const OVER = 3;
+// ja 22,5° poikkiviivan takana sivu-, masto- ja perävalo sammuvat vähitellen (enintään 5° sektorin ulkopuolella),
+// joten rajalla sivuvalo ja perävalo näkyvät hetken yhtä aikaa
+const OVER = 3, OVER_AFT = 2.5;
 function colorsAt(l, a) {
   switch (l.s) {
     case 'all': return [l.c];
-    case 'mast': return (a <= 112.5 + EPS || a >= 247.5 - EPS) ? [l.c] : [];
-    case 'stb': return (a <= 112.5 + EPS || a >= 360 - OVER - EPS) ? [l.c] : [];
-    case 'port': return (a >= 247.5 - EPS || a <= OVER + EPS) ? [l.c] : [];
-    case 'stern': return (a >= 112.5 - EPS && a <= 247.5 + EPS) ? [l.c] : [];
+    case 'mast': return (a <= 112.5 + OVER_AFT || a >= 247.5 - OVER_AFT) ? [l.c] : [];
+    case 'stb': return (a <= 112.5 + OVER_AFT || a >= 360 - OVER - EPS) ? [l.c] : [];
+    case 'port': return (a >= 247.5 - OVER_AFT || a <= OVER + EPS) ? [l.c] : [];
+    case 'stern': return (a >= 112.5 - OVER_AFT && a <= 247.5 + OVER_AFT) ? [l.c] : [];
     case 'tri': {
       if (a <= OVER + EPS || a >= 360 - OVER - EPS) return ['g','r'];
+      if (Math.abs(a - 112.5) <= OVER_AFT) return ['g','w'];
+      if (Math.abs(a - 247.5) <= OVER_AFT) return ['r','w'];
       if (a < 112.5) return ['g'];
       if (a > 247.5) return ['r'];
       return ['w'];
@@ -1104,10 +1108,10 @@ stageBox.addEventListener('pointermove', (e) => {
   if (!drag || e.pointerId !== drag.id) return;
   const dx = e.clientX - drag.x;
   if (Math.abs(dx) > 3) { try { stageBox.setPointerCapture(drag.id); } catch {} }
-  // puoli kierrosta kuvan leveydellä; pysähtyy hetkeksi suoraan edessä, sivulla ja takana
+  // puoli kierrosta kuvan leveydellä; pysähtyy hetkeksi sivulla ja takana (ei valojen vaihtumiskohdissa)
   let a = norm(drag.th - dx * 180 / Math.max(stageBox.clientWidth, 300));
   const q = Math.round(a / 90) * 90;
-  if (Math.abs(a - q) < 6) a = q;
+  if (q % 180 !== 0 || q === 180 ? Math.abs(a - q) < 3 : Math.abs(a - q) < .8) a = norm(q);
   setAngle(a);
 });
 // sektorikaavio: napautus tai veto kehällä asettaa katselusuunnan
@@ -1119,7 +1123,7 @@ function sectorPick(e) {
   if (Math.hypot(dx, dy) < 4) return;
   let a = norm(Math.atan2(dx, -dy) / D2R);
   const q = Math.round(a / 90) * 90;
-  if (Math.abs(a - q) < 4) a = q;
+  if (q % 180 !== 0 || q === 180 ? Math.abs(a - q) < 3 : Math.abs(a - q) < .8) a = norm(q);
   setAngle(Math.round(a));
 }
 sectorEl.addEventListener('pointerdown', (e) => {
