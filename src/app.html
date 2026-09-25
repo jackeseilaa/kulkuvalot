@@ -450,7 +450,7 @@ a{color:var(--brass)}
       <label for="kLightIn" class="eyebrow" style="margin:0">Loisto</label>
       <input id="kLightIn" list="kLightList" autocomplete="off" placeholder="Kirjoita loiston nimi, esim. Harmaja tai Tiirakari">
       <datalist id="kLightList"></datalist>
-      <button class="btn primary" id="kLightGo">Avaa</button>
+      <button class="btn primary" id="kLightGo">Vaihda loisto</button>
       <span id="kLightStatus" class="muted"></span>
     </div>
     <div class="stage-box" id="kNightBox" style="margin-bottom:12px">
@@ -682,7 +682,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.22', APP_BUILD = '__BUILD__';
+const APP_VERSION = '2.24', APP_BUILD = '__BUILD__';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
@@ -1595,6 +1595,23 @@ function prepLights(list, mainNo) {
     L.ph = L.no === mainNo ? 0 : hashPhase(L.no); L.seqc = L.seq.map(([d, on]) => [d, on ? 1 : 0]);
   });
 }
+// käsin tehdyt korjaukset avoimeen aineistoon merikartan mukaan (Väyläviraston tiedoissa Lintupaadet on valaisematon tutkamerkki)
+const KFIX = [
+  { no:'21166', name:'Lintupaadet', type:'Tutkamerkki', nav:99, ch:'VQ (5) 6 s', h:8, lat:60.11132428, lon:24.89728993,
+    seq:[[.2, 1], [.2, 0], [.2, 1], [.2, 0], [.2, 1], [.2, 0], [.2, 1], [.2, 0], [.2, 1], [4.2, 0]] },
+];
+function kApplyFixes(lights, marks, origin) {
+  const [lon0, lat0] = origin, kx = 111320 * Math.cos(lat0 * D2R);
+  for (const F of KFIX) {
+    const p = [Math.round((F.lon - lon0) * kx), Math.round((F.lat - lat0) * 110540)];
+    if (Math.hypot(p[0], p[1]) > 15000) continue;
+    const L = { no:F.no, name:F.name, type:F.type, nav:F.nav, ch:F.ch, h:F.h, p, seq:F.seq, sec:[[0, 360, 'v']] };
+    const i = lights.findIndex(x => x.no === F.no);
+    if (i >= 0) lights[i] = { ...lights[i], ...L }; else lights.push(L);
+    if (marks) { const j = marks.findIndex(x => x.no === F.no); if (j >= 0) marks.splice(j, 1); }
+  }
+}
+kApplyFixes(KL, KOIRA.marks, KOIRA.origin);
 prepLights(KL, KL[0].no);
 
 // reitit (paikalliset metrit, x itään, y pohjoiseen); keskilinja todellisen väylälinjan mukaan
@@ -1655,6 +1672,9 @@ function chartSymbol(L, big = 1) {
   if (L.type === 'Linjamerkki') return `<rect x="${-26 * k}" y="${-60 * k}" width="${52 * k}" height="${60 * k}" fill="${K.white}" ${o}/><rect x="${-6 * k}" y="${-60 * k}" width="${12 * k}" height="${60 * k}" fill="${K.black}"/>`;
   return `<circle r="${42 * k}" fill="none" stroke="#c86bd8" stroke-width="${12 * k}"/>`;
 }
+// merikartassa poijuja ja viittoja ei nimetä, joten niistä näytetään tyyppi (virallinen nimi näkyy vihjetekstissä)
+const KMARKNAME = { 1:'vasen sivumerkki', 2:'oikea sivumerkki', 3:'pohjoinen merkki', 4:'eteläinen merkki', 5:'läntinen merkki', 6:'itäinen merkki' };
+const kName = (L) => (L.type === 'Poiju' || L.type === 'Viitta') ? (KMARKNAME[L.nav] || L.type.toLowerCase()) : L.name;
 function kBuildChart() {
   const svg = $('kChart'); let s = '';
   s += `<rect x="-2400" y="-1900" width="4400" height="4500" fill="#0b1826"/><g id="kTiles"></g>`;
@@ -1681,7 +1701,7 @@ function kBuildChart() {
   for (const L of SL.filter(x => x !== KMAIN)) {
     const [x, y] = L.p;
     s += `<g transform="translate(${x},${-y})">${chartSymbol(L, 2.1)}<title>${L.name} · ${L.type} · ${L.chf}</title></g>`;
-    names += `<text x="${x + 110}" y="${-y + 20}" class="kc-small">${L.name}</text>`;
+    names += `<text x="${x + 110}" y="${-y + 20}" class="kc-small">${kName(L)}</text>`;
   }
   s += '</g><g id="kRouteLine"></g>';
   s += `<g id="kChartNames" hidden>${names}</g>`;
@@ -1751,7 +1771,7 @@ function kComputeVisible() {
   const showNames = ks.names || (ks.q && ks.q.answered), placed = [];
   if (showNames) {
     for (const v of kVis.slice().sort((a, b) => (b.L.no === KMAIN.no) - (a.L.no === KMAIN.no) || a.d - b.d)) {
-      v.txt = `${v.L.name} · ${v.L.chf}`;
+      v.txt = `${kName(v.L)} · ${v.L.chf}`;
       const w = v.txt.length * 6.2 + 14;
       if (placed.some(p => Math.abs(p.x - v.x) < (p.w + w) / 2)) continue;
       placed.push({ x: v.x, w }); v.label = true;
@@ -2125,6 +2145,7 @@ async function kLoadLight(no) {
       KOIRA.land.forEach(r => land.push(r.map(conv))); KOIRA.shore.forEach(r => shore.push(r.map(conv)));
     } else coastOk = false;
   }
+  kApplyFixes(lights, marks, [lon0, lat0]);
   return { origin:[lon0, lat0], lights, marks, lines, land, shore, coastOk };
 }
 // sektorien merkitys: punainen valkoisen vasemmalla (suurempi suuntima), vihreä oikealla (pienempi suuntima)
@@ -2170,7 +2191,9 @@ function kApplyLabels() {
   if (noRoutes && ks.mode === 'route') ks.mode = 'free';
   $('kLightIn').value = kLabel(LIDX.find(x => x[0] === KMAIN.no) || [KMAIN.no, KMAIN.name, KMAIN.type, 0, 0]);
 }
-const kLabel = (e) => `${e[1]} · ${e[2].toLowerCase()} · ${e[3].toFixed(2)}° N ${e[4].toFixed(2)}° E`;
+// koordinaatit asteina, minuutteina ja sekunteina, esim. 60° 07′ 26″ N
+const kDms = (v) => { const t = Math.round(Math.abs(v) * 3600), d = Math.floor(t / 3600), m = Math.floor(t / 60) % 60, sec = t % 60; return `${d}° ${String(m).padStart(2, '0')}′ ${String(sec).padStart(2, '0')}″`; };
+const kLabel = (e) => `${e[1]} · ${e[2].toLowerCase()} · ${kDms(e[3])} N ${kDms(e[4])} E`;
 const kCache = new Map();
 async function kSelectLight(no) {
   const st2 = $('kLightStatus');
