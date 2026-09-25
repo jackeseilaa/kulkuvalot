@@ -101,6 +101,9 @@ def main():
             'p': P(*f['geometry']['coordinates'][0]), 'seq': seq,
             'sec': sorted(sectors.get(n, []), key=lambda s: s[0]),
         })
+        fw = re.search(r'\[\d+: ([^\]]+)\]', p.get('vaylan_nimi') or '')   # linjamerkin väylä kartan nimeä varten
+        if p['turvalaitetyyppifi'] == 'Linjamerkki' and fw:
+            out_lights[-1]['fw'] = fw.group(1).strip()
     out_lights.sort(key=lambda l: l['no'] != LIGHT_NO)
 
     # valaisemattomat viitat ja poijut (näkyvät yöllä vain varjoina)
