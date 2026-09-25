@@ -190,6 +190,7 @@ body.kfollower .wrap{max-width:none;padding-block:8px}
 body.kfollower .koira-grid{grid-template-columns:minmax(0,1fr)}
 body.kfollower .koira-grid>aside .chart-box{display:flex;justify-content:center}
 body.kfollower #kChart{height:calc(100vh - 70px);width:auto;max-width:100%}
+.sim-follow{position:absolute;right:10px;bottom:10px;z-index:2}
 .kf-head{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline;margin-bottom:8px}
 #view-sim.popped .sim-grid>aside,#view-sim.popped #simEnc,#view-sim.popped #simInfoCard{display:none!important}
 .sim-encnote{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);background:rgba(45,34,15,.92);border:1px solid var(--brass);color:#ffd9a0;border-radius:999px;padding:6px 14px;font-weight:600;font-size:14px;white-space:nowrap}
@@ -682,7 +683,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.29', APP_BUILD = '__BUILD__';
+const APP_VERSION = '2.30', APP_BUILD = '__BUILD__';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
@@ -1735,8 +1736,52 @@ function kBuildChart() {
   s += `<g><path d="M0,-95 L22,-22 95,0 22,22 0,95 -22,22 -95,0 -22,-22Z" fill="#fff3d6" stroke="#0b1826" stroke-width="10"/><text x="110" y="-60" class="kc-name">${KMAIN.name}</text></g>`;
   s += `<g id="kBearing"></g><g id="kBoat"></g>`;
   svg.innerHTML = s;
-  kTileKey = ''; kDrawTiles();
+  kTileKey = ''; $('kTiles').innerHTML = ''; kApplyView();
   const n = $('kChartNames'); if (n) n.toggleAttribute('hidden', !ks.names);
+}
+// kartan vapaa zoomaus ja siirto (karttaikkunassa ja iPadilla): sormi tai hiiri siirtää, kaksi sormea tai rulla zoomaa.
+// get() ja set() käsittelevät näkymää SVG-koordinaateissa { cx, cy, w }; minN() kertoo, montako osoitinta siirto vaatii
+function chartGestures(svg, get, set, minN = () => 1) {
+  const pts = new Map(); let st0 = null;
+  svg.style.touchAction = 'none';
+  const snap = () => {
+    const r = svg.getBoundingClientRect(), a = [...pts.values()], v = get();
+    const mid = a.reduce((m, p) => [m[0] + p[0] / a.length, m[1] + p[1] / a.length], [0, 0]);
+    const dist = a.length > 1 ? Math.hypot(a[0][0] - a[1][0], a[0][1] - a[1][1]) : 0;
+    st0 = { v, mid, dist, n: a.length, mpp: v.w / Math.max(1, Math.min(r.width, r.height * (v.aspect || 1))), cx: r.left + r.width / 2, cy: r.top + r.height / 2 };
+  };
+  const move = () => {
+    if (!st0 || pts.size < minN() || pts.size !== st0.n) return;
+    const a = [...pts.values()], mid = a.reduce((m, p) => [m[0] + p[0] / a.length, m[1] + p[1] / a.length], [0, 0]);
+    let k = 1;
+    if (a.length > 1 && st0.dist > 10) k = st0.dist / Math.max(10, Math.hypot(a[0][0] - a[1][0], a[0][1] - a[1][1]));
+    const w = Math.max(250, Math.min(20000, st0.v.w * k)), m1 = st0.mpp * w / st0.v.w;
+    // piste, joka oli sormien keskikohdan alla, pysyy sormien alla
+    const px = st0.v.cx + (st0.mid[0] - st0.cx) * st0.mpp, py = st0.v.cy + (st0.mid[1] - st0.cy) * st0.mpp;
+    set({ ...st0.v, w, cx: px - (mid[0] - st0.cx) * m1, cy: py - (mid[1] - st0.cy) * m1 });
+  };
+  svg.addEventListener('pointerdown', (e) => { pts.set(e.pointerId, [e.clientX, e.clientY]); snap(); if (pts.size >= minN()) { try { svg.setPointerCapture(e.pointerId); } catch {} } });
+  svg.addEventListener('pointermove', (e) => { if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, [e.clientX, e.clientY]); move(); });
+  const up = (e) => { pts.delete(e.pointerId); snap(); };
+  svg.addEventListener('pointerup', up); svg.addEventListener('pointercancel', up);
+  svg.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const r = svg.getBoundingClientRect(), v = get(), mpp = v.w / Math.max(1, Math.min(r.width, r.height * (v.aspect || 1)));
+    const w = Math.max(250, Math.min(20000, v.w * Math.exp(e.deltaY * .0015))), m1 = mpp * w / v.w;
+    const qx = e.clientX - (r.left + r.width / 2), qy = e.clientY - (r.top + r.height / 2);
+    set({ ...v, w, cx: v.cx + qx * (mpp - m1), cy: v.cy + qy * (mpp - m1) });
+  }, { passive: false });
+  return { pinching: () => pts.size > 1 };
+}
+// sektorikartan näkymä: null = koko kartta
+let kView = null, kGest = null;
+const KV0 = { cx: -200, cy: 350, w: 4400, aspect: 4400 / 4500 };
+const kVB = () => kView || KV0;
+function kApplyView() {
+  const v = kVB(), h = v.w / KV0.aspect;
+  $('kChart').setAttribute('viewBox', `${f1(v.cx - v.w / 2)} ${f1(v.cy - h / 2)} ${f1(v.w)} ${f1(h)}`);
+  const b = $('kFit'); if (b) b.hidden = !kView;
+  kDrawTiles();
 }
 // pohjakartta: Traficomin rannikkokartta tai merikarttasarja A (WMTS-tiilet loiston paikallisiin metreihin), tai oma kaavio
 const KBASES = { own:null, rannikko:'Rannikkokartat%20public', sarjaA:'Merikarttasarja%20A%20public' };
@@ -1748,22 +1793,29 @@ function kDrawTiles() {
   $('kChart').classList.toggle('tiles', !!layer);                   // merikartalla sektorit vain kevyesti, ettei kartan värit muutu
   g.style.filter = layer && ks.dim ? 'brightness(.62) contrast(1.05) saturate(.85)' : '';
   if (!layer) { g.innerHTML = ''; kTileKey = ''; return; }
-  const [lon0, lat0] = SD.origin, kx = 111320 * Math.cos(lat0 * D2R), svg = $('kChart');
-  const px = Math.max(250, svg.clientWidth || 400) * Math.min(2, window.devicePixelRatio || 1), mpp = 4400 / px;
+  const [lon0, lat0] = SD.origin, kx = 111320 * Math.cos(lat0 * D2R), svg = $('kChart'), v = kVB(), vh = v.w / KV0.aspect;
+  const r = svg.getBoundingClientRect(), fit = Math.max(v.w / Math.max(1, r.width), vh / Math.max(1, r.height));
+  const mpp = (fit || v.w / 400) / Math.min(2, window.devicePixelRatio || 1);
   const z = Math.max(11, Math.min(15, Math.round(Math.log2(78271.5 * Math.cos(lat0 * D2R) / mpp))));
-  const key = `${ks.base}/${z}/${lon0},${lat0}/${ks.dim}`;
-  if (key === kTileKey) return;
-  kTileKey = key;
+  // näkyvä alue (SVG:n y = -pohjoinen); vähän reunoille yli
+  const ex = Math.max(v.w, r.width * fit) * .6, ey = Math.max(vh, r.height * fit) * .6;
   const n = 2 ** z, tx = (lon) => Math.floor((lon + 180) / 360 * n), ty = (lat) => Math.floor((1 - Math.asinh(Math.tan(lat * D2R)) / Math.PI) / 2 * n);
-  const x0 = tx(-2400 / kx + lon0), x1 = tx(2000 / kx + lon0), y0 = ty(1900 / 110540 + lat0), y1 = ty(-2600 / 110540 + lat0);
+  const x0 = tx((v.cx - ex) / kx + lon0), x1 = tx((v.cx + ex) / kx + lon0), y0 = ty(-(v.cy - ey) / 110540 + lat0), y1 = ty(-(v.cy + ey) / 110540 + lat0);
+  const key = `${ks.base}/${z}/${x0}-${x1}/${y0}-${y1}/${lon0},${lat0}`;
+  if (key === kTileKey) return;
+  if (!kTileKey.startsWith(`${ks.base}/${z}/`) || !kTileKey.endsWith(`/${lon0},${lat0}`)) g.innerHTML = '';
+  kTileKey = key;
   const loc = (lon, lat) => [(lon - lon0) * kx, (lat - lat0) * 110540];
+  const have = new Set([...g.children].map(im => im.dataset.k)), want = new Set();
   let h = '';
   for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
+    const tk = `${x}/${y}`; want.add(tk); if (have.has(tk)) continue;
     const [X0, Y0] = loc(x / n * 360 - 180, Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n))) / D2R);
     const [X1, Y1] = loc((x + 1) / n * 360 - 180, Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + 1) / n))) / D2R);
-    h += `<image href="https://julkinen.traficom.fi/rasteripalvelu/wmts/rest/Traficom:${layer}//WGS84_Pseudo-Mercator/WGS84_Pseudo-Mercator:${z}/${y}/${x}?format=image/png" x="${f1(X0)}" y="${f1(-Y0)}" width="${f1(X1 - X0 + .6)}" height="${f1(Y0 - Y1 + .6)}" preserveAspectRatio="none"/>`;
+    h += `<image data-k="${tk}" href="https://julkinen.traficom.fi/rasteripalvelu/wmts/rest/Traficom:${layer}//WGS84_Pseudo-Mercator/WGS84_Pseudo-Mercator:${z}/${y}/${x}?format=image/png" x="${f1(X0)}" y="${f1(-Y0)}" width="${f1(X1 - X0 + .6)}" height="${f1(Y0 - Y1 + .6)}" preserveAspectRatio="none"/>`;
   }
-  g.innerHTML = h;
+  for (const im of [...g.children]) if (!want.has(im.dataset.k)) im.remove();
+  g.insertAdjacentHTML('beforeend', h);
 }
 function kDrawRouteLine() {
   const g = $('kRouteLine');
@@ -1993,10 +2045,21 @@ function kRouteUi() {
   const toLocal = (e) => { const p = svg().createSVGPoint(); p.x = e.clientX; p.y = e.clientY; const m = svg().getScreenCTM().inverse(); const q = p.matrixTransform(m); return [q.x, -q.y]; };
   document.addEventListener('pointerdown', (e) => {
     if (st.view !== 'koira' || ks.mode !== 'free' || !(e.target.closest ? e.target : document.body).closest('#kChart')) return;
+    if (!e.isPrimary || (kGest && kGest.pinching())) { dragging = false; pending = null; return; }
+    // karttaikkunassa odotetaan hetki, ettei kahden sormen zoomaus siirrä venettä ensimmäisen sormen kohdalle
+    if (kGest) { pending = { x: e.clientX, y: e.clientY, e }; e.preventDefault(); return; }
     dragging = true; const [x, y] = toLocal(e); kSetBoat(x, y); e.preventDefault();
   });
-  document.addEventListener('pointermove', (e) => { if (dragging) { const [x, y] = toLocal(e); kSetBoat(x, y); } });
-  document.addEventListener('pointerup', () => { dragging = false; });
+  let pending = null;
+  document.addEventListener('pointermove', (e) => {
+    if (kGest && kGest.pinching()) { pending = null; dragging = false; return; }
+    if (pending && e.isPrimary && Math.hypot(e.clientX - pending.x, e.clientY - pending.y) > 8) { pending = null; dragging = true; }
+    if (dragging && e.isPrimary) { const [x, y] = toLocal(e); kSetBoat(x, y); }
+  });
+  document.addEventListener('pointerup', (e) => {
+    if (pending && !(kGest && kGest.pinching())) { const [x, y] = toLocal(pending.e); kSetBoat(x, y); }   // napautus siirtää veneen
+    pending = null; dragging = false;
+  });
 })();
 
 function kSetMode(m) {
@@ -2313,7 +2376,7 @@ function kFollowHead() {
   const b = brg(ks.x, ks.y, 0, 0), d = Math.hypot(ks.x, ks.y);
   $('kfHead').innerHTML = `<p class="eyebrow" style="margin:0">Sektoriloisto · kartta <span class="ver">${VER_TEXT}</span></p><b>${KMAIN.name}, ${KMAIN.chf}</b>` +
     (ks.q && !ks.q.answered ? '<span class="muted">Kartta näytetään, kun olet vastannut.</span>' : `<span class="muted">Suuntima loistoon ${fmtDeg(b)} · ${(d / 1000).toFixed(2).replace('.', ',')} km</span>`) +
-    (ks.mode === 'free' ? '<span class="muted">Vedä venettä kartalla.</span>' : '') + (ks.fstatus ? `<span class="verdict bad">${ks.fstatus}</span>` : '');
+    (ks.mode === 'free' ? '<span class="muted">Vedä venettä yhdellä sormella, siirrä ja zoomaa karttaa kahdella.</span>' : '<span class="muted">Siirrä karttaa sormella, zoomaa kahdella sormella.</span>') + (ks.fstatus ? `<span class="verdict bad">${ks.fstatus}</span>` : '');
 }
 if (KBC) KBC.onmessage = (ev) => kHandle(ev.data || {});
 async function kHandle(m) {
@@ -2335,6 +2398,10 @@ async function kHandle(m) {
   else if (m.type === 'kboat' && ks.mode === 'free') kSetBoat(m.x, m.y);
 }
 if (KFOLLOW) {
+  // vapaassa tilassa yksi sormi siirtää venettä, joten karttaa siirretään ja zoomataan kahdella sormella (tai rullalla)
+  kGest = chartGestures($('kChart'), kVB, (v) => { kView = v; kApplyView(); }, () => ks.mode === 'free' ? 2 : 1);
+  $('kChart').insertAdjacentHTML('afterend', '<button class="btn sim-follow" id="kFit" hidden>Koko kartta</button>');
+  $('kFit').onclick = () => { kView = null; kApplyView(); };
   document.body.classList.add('kfollower');
   document.title = 'Kulkuvalot · sektorikartta';
   $('kfHead').hidden = false;
@@ -2361,9 +2428,9 @@ $('kPopBtn').onclick = () => {
   if (!w) $('kLightStatus').textContent = 'Selain esti ikkunan avaamisen. Salli ponnahdusikkunat tälle sivulle.';
 };
 $('kBaseSel').value = ks.base; $('kDimIn').checked = ks.dim;
-$('kBaseSel').onchange = () => { ks.base = $('kBaseSel').value; store.set('kBase', ks.base); kDrawTiles(); };
+$('kBaseSel').onchange = () => { ks.base = $('kBaseSel').value; store.set('kBase', ks.base); kTileKey = ''; $('kTiles').innerHTML = ''; kDrawTiles(); };
 $('kDimIn').onchange = () => { ks.dim = $('kDimIn').checked; store.set('kDim', ks.dim); kDrawTiles(); };
-addEventListener('resize', () => { if (st.view === 'koira') kDrawTiles(); });
+addEventListener('resize', () => { if (st.view === 'koira') { kTileKey = ''; kDrawTiles(); } });
 const kMarkUi = () => { $('kMarkBtn').setAttribute('aria-pressed', String(ks.mark)); $('kMarkBtn').classList.toggle('primary', ks.mark); };
 $('kMarkBtn').onclick = () => { ks.mark = !ks.mark; store.set('kMark', ks.mark); kMarkUi(); kDrawMark(); };
 kMarkUi();
@@ -2873,6 +2940,9 @@ const SIM = (() => {
   };
   const tileCache = new Map();
   let tileKey = '';
+  // kartan näkymä SVG-koordinaateissa; fv = vapaasti siirretty ja zoomattu (karttaikkunassa), muuten vene keskellä
+  let fv = null;
+  const chartV = () => fv || { cx: s.x, cy: -s.y, w: ZOOMS[s.zoom] };
   function toLocal(lon, lat) { return [(lon - LON0) * KX, (lat - LAT0) * 110540]; }
   function drawTiles() {
     const svg = $('simChart'), g = $('simTiles'); if (!g) return;
@@ -2880,11 +2950,12 @@ const SIM = (() => {
     $('simOwnChart').style.display = base.layer ? 'none' : '';
     g.style.filter = base.layer && s.dim ? 'brightness(.62) contrast(1.05) saturate(.85)' : '';
     if (!base.layer) { g.innerHTML = ''; tileCache.clear(); tileKey = ''; return; }
-    const Wv = ZOOMS[s.zoom], px = Math.max(250, svg.clientWidth || 330), mpp = Wv / px;
+    const V = chartV(), Wv = V.w, r = svg.getBoundingClientRect(), fit = Wv / Math.max(1, Math.min(r.width || 330, r.height || 330));
+    const mpp = fit / Math.min(2, window.devicePixelRatio || 1);
     const z = Math.max(11, Math.min(15, Math.round(Math.log2(78271.5 / mpp))));
-    const n = 2 ** z, half = Wv * .6;
-    const lonA = (s.x - half) / KX + LON0, lonB = (s.x + half) / KX + LON0;
-    const latA = (s.y - half) / 110540 + LAT0, latB = (s.y + half) / 110540 + LAT0;
+    const n = 2 ** z, hx = Math.max(Wv, (r.width || 330) * fit) * .6, hy = Math.max(Wv, (r.height || 330) * fit) * .6, X = V.cx, Y = -V.cy;
+    const lonA = (X - hx) / KX + LON0, lonB = (X + hx) / KX + LON0;
+    const latA = (Y - hy) / 110540 + LAT0, latB = (Y + hy) / 110540 + LAT0;
     const tx = (lon) => Math.floor((lon + 180) / 360 * n);
     const ty = (lat) => Math.floor((1 - Math.asinh(Math.tan(lat * D2R)) / Math.PI) / 2 * n);
     const x0 = tx(lonA), x1 = tx(lonB), y0 = ty(latB), y1 = ty(latA);
@@ -2931,9 +3002,10 @@ const SIM = (() => {
   function drawChart(force) {
     if (!s.chart) return;
     if (s.base === 'own') drawSecs();
-    const svg = $('simChart'), Wv = ZOOMS[s.zoom];
+    const svg = $('simChart'), V = chartV(), Wv = V.w;
     svg.style.setProperty('--fs', f1(Wv / 330 * 11) + 'px');
-    svg.setAttribute('viewBox', `${f1(s.x - Wv / 2)} ${f1(-s.y - Wv / 2)} ${Wv} ${Wv}`);
+    svg.setAttribute('viewBox', `${f1(V.cx - Wv / 2)} ${f1(V.cy - Wv / 2)} ${f1(Wv)} ${f1(Wv)}`);
+    const fb = $('simFollow'); if (fb) fb.hidden = !fv;
     drawTiles();
     $('simTrack').setAttribute('points', s.track.map(p => f1(p[0]) + ',' + f1(-p[1])).join(' ') + ` ${f1(s.x)},${f1(-s.y)}`);
     $('simBoat').setAttribute('transform', `translate(${f1(s.x)},${f1(-s.y)}) rotate(${f1(s.hdg)}) scale(${f1(Wv / 1800)})`);
@@ -3177,7 +3249,7 @@ const SIM = (() => {
   function drawAis() {
     const g = $('simAis'); if (!g) return;
     if (!s.ais) { g.innerHTML = ''; return; }
-    const svg = $('simChart'), Wv = ZOOMS[s.zoom], k = Wv / 1800, mpp = Wv / Math.max(250, svg.clientWidth || 330);   // metriä per näytön pikseli
+    const svg = $('simChart'), Wv = chartV().w, k = Wv / 1800, mpp = Wv / Math.max(250, Math.min(svg.clientWidth || 330, svg.clientHeight || 330));   // metriä per näytön pikseli
     g.innerHTML = traffic.map(T => {
       const pl = planOf(T), h = T.hdg * D2R, v = T.hold > 0 ? 0 : T.def.kn * KN;
       // AIS-merkki: vähimmäiskoko aluksen koon mukaan (iso alus selvästi suurempi), valkoinen reunus erottaa merikartalta
@@ -3500,6 +3572,10 @@ const SIM = (() => {
   // karttaikkuna
   function initFollower() {
     document.body.classList.add('follower');
+    // kartta vapaasti siirrettävä ja zoomattava; Seuraa venettä palauttaa veneen keskelle
+    chartGestures($('simChart'), chartV, (v) => { fv = v; drawChart(); drawAis(); });
+    $('simChart').insertAdjacentHTML('afterend', '<button class="btn sim-follow" id="simFollow" hidden>Seuraa venettä</button>');
+    $('simFollow').onclick = () => { fv = null; drawChart(); drawAis(); };
     document.title = 'Kulkuvalot · kartta';
     // uusi asettelu: kartta vasemmalle, kysymykset ja tehtävä oikealle
     const wrap = document.createElement('div'); wrap.className = 'follow-grid';
@@ -3597,7 +3673,7 @@ const SIM = (() => {
     $('simAisIn').onchange = (e) => { s.ais = e.target.checked; drawAis(); };
     $('simReset').onclick = reset;
     document.querySelectorAll('#simZoom button').forEach(b => b.onclick = () => {
-      s.zoom = b.dataset.z; document.querySelectorAll('#simZoom button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); drawChart();
+      s.zoom = b.dataset.z; fv = null; document.querySelectorAll('#simZoom button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); drawChart(); drawAis();
     });
     $('simNames').onchange = (e) => { s.names = e.target.checked; castView(true); drawChart(); };
     $('simChartIn').onchange = (e) => { s.chart = e.target.checked; $('simChartBox').hidden = !s.chart; drawChart(); };
