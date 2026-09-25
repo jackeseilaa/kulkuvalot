@@ -79,7 +79,7 @@ select{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;
 .seg button[aria-pressed="true"]{background:#1d2a3c;color:var(--text);box-shadow:inset 0 -2px 0 var(--brass)}
 .angle{display:flex;align-items:center;gap:10px;flex:1 1 260px;min-width:0}
 .angle input{flex:1;accent-color:var(--brass);min-width:0}
-.angle output{font:500 14px var(--mono);color:var(--muted);white-space:nowrap;min-width:9.5em;text-align:right}
+.angle output{font:500 14px var(--mono);color:var(--muted);white-space:nowrap;flex:0 0 21ch;width:21ch;text-align:left}
 .check{display:inline-flex;align-items:center;gap:8px;color:var(--muted);cursor:pointer}
 .check input{accent-color:var(--brass);width:18px;height:18px}
 
@@ -649,7 +649,7 @@ a{color:var(--brass)}
         <h2>Mikä valo näkyy mistäkin</h2>
         <ul>
           <li><b>Mastovalo</b>: valkoinen, näkyy 225° keulan suuntaan</li>
-          <li><b>Sivuvalot</b>: vihreä oikealla (styyrpuuri), punainen vasemmalla (paapuuri), kumpikin 112,5°. Valot näkyvät 1–3° keulan yli, joten kun näet molemmat, alus tulee suoraan kohti. Samoin 22,5° poikkiviivan takana sivuvalo ja perävalo näkyvät vaihtumiskohdassa hetken yhtä aikaa, koska valot sammuvat vähitellen muutaman asteen sektorinsa ulkopuolella.</li>
+          <li><b>Sivuvalot</b>: vihreä oikealla (styyrpuuri), punainen vasemmalla (paapuuri), kumpikin 112,5°. Valot näkyvät 1–3° keulan yli, joten kun näet molemmat, alus tulee suoraan kohti. Samoin 22,5° poikkiviivan takana sivuvalo himmenee vähitellen ja perävalo tulee samaan aikaan esiin, koska valojen teho laskee sektorin rajalla ja ne sammuvat viimeistään 5° sektorinsa ulkopuolella.</li>
           <li><b>Perävalo</b>: valkoinen, näkyy 135° taakse</li>
           <li><b>Hinausvalo</b>: keltainen, sama sektori kuin perävalolla</li>
           <li><b>Ympäri näköpiirin näkyvä valo</b>: näkyy 360°</li>
@@ -665,7 +665,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.18', APP_BUILD = '25.9.2026 07:24';
+const APP_VERSION = '2.19', APP_BUILD = '25.9.2026 07:58';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
@@ -693,27 +693,34 @@ const ar = (c, x, z, y = 0, f) => Lt(c,'all',x,y,z,f);
 const stack = (cols, x, ztop, gap, y = 0) => cols.map((c, i) => ar(c, x, ztop - i * gap, y));
 
 // Sivuvalot näkyvät käytännössä 1–3° keulan yli (COLREG liite I), joten suoraan edestä näkyy molemmat
-// ja 22,5° poikkiviivan takana sivu-, masto- ja perävalo sammuvat vähitellen (enintään 5° sektorin ulkopuolella),
-// joten rajalla sivuvalo ja perävalo näkyvät hetken yhtä aikaa
-const OVER = 3, OVER_AFT = 2.5;
-function colorsAt(l, a) {
+// ja 22,5° poikkiviivan takana sivu-, masto- ja perävalo himmenevät vähitellen (COLREG liite I 10 ja 11: teho saa
+// laskea puoleen sektorin rajalla ja sammua viimeistään 5° sen ulkopuolella), joten rajalla valo häviää hitaasti
+// ja seuraava tulee samaan aikaan esiin
+const OVER = 3, FADE = 8;                                       // liitteen 5° levennetty, jotta vaihtuminen erottuu näytöllä
+const lvBow = (u) => u >= 0 ? 1 : Math.max(0, 1 + u / OVER);                 // keulan puolella katkeaa 1–3°:ssa
+const lvAft = (u) => u >= FADE ? 1 : u >= 0 ? .5 + .5 * u / FADE : Math.max(0, .5 * (1 + u / FADE));
+// sektori s0 → s1 myötäpäivään; f0 ja f1 kertovat, miten valo himmenee alku- ja loppureunalla
+function secLv(a, s0, s1, f0, f1) {
+  const w = (s1 - s0 + 360) % 360 || 360, p = (a - s0 + 360) % 360;
+  if (p <= w) return Math.min(f0(p), f1(w - p));
+  const b0 = (s0 - a + 360) % 360, b1 = p - w;                              // matka alkureunaan ja loppureunaan ulkopuolelta
+  return b0 < b1 ? f0(-b0) : f1(-b1);
+}
+// valot ja niiden kirkkaus (0–1) katselukulmassa a (aluksen keulasta myötäpäivään)
+function lightLevels(l, a) {
+  const G = () => secLv(a, 0, 112.5, lvBow, lvAft), R = () => secLv(a, 247.5, 360, lvAft, lvBow), Wt = () => secLv(a, 112.5, 247.5, lvAft, lvAft);
   switch (l.s) {
-    case 'all': return [l.c];
-    case 'mast': return (a <= 112.5 + OVER_AFT || a >= 247.5 - OVER_AFT) ? [l.c] : [];
-    case 'stb': return (a <= 112.5 + OVER_AFT || a >= 360 - OVER - EPS) ? [l.c] : [];
-    case 'port': return (a >= 247.5 - OVER_AFT || a <= OVER + EPS) ? [l.c] : [];
-    case 'stern': return (a >= 112.5 - OVER_AFT && a <= 247.5 + OVER_AFT) ? [l.c] : [];
-    case 'tri': {
-      if (a <= OVER + EPS || a >= 360 - OVER - EPS) return ['g','r'];
-      if (Math.abs(a - 112.5) <= OVER_AFT) return ['g','w'];
-      if (Math.abs(a - 247.5) <= OVER_AFT) return ['r','w'];
-      if (a < 112.5) return ['g'];
-      if (a > 247.5) return ['r'];
-      return ['w'];
-    }
+    case 'all': return [[l.c, 1]];
+    case 'mast': return [[l.c, secLv(a, 247.5, 112.5, lvAft, lvAft)]];
+    case 'stb': return [[l.c, G()]];
+    case 'port': return [[l.c, R()]];
+    case 'stern': return [[l.c, Wt()]];
+    case 'tri': return [['g', G()], ['r', R()], ['w', Wt()]];
   }
   return [];
 }
+// näkyvät värit (tehtävät ja selitykset): selvästi erottuvat valot
+function colorsAt(l, a) { return lightLevels(l, a).filter(x => x[1] >= .2).map(x => x[0]); }
 
 /* ---------- vessel bodies ---------- */
 function smallShip() {
@@ -949,13 +956,13 @@ const norm = (a) => ((a % 360) + 360) % 360;
 const f1 = (n) => n.toFixed(1);
 const ptsAttr = (arr) => arr.map(p => f1(p[0]) + ',' + f1(p[1])).join(' ');
 
-function visibleLights(m, th) {
+function visibleLights(m, th, min = .03) {
   const P = projector(m, th), a = norm(th), out = [];
   for (const l of m.lights) {
-    const cols = colorsAt(l, a);
-    if (!cols.length) continue;
+    const lv = lightLevels(l, a).filter(x => x[1] >= min);
+    if (!lv.length) continue;
     const [x, y, d] = P(l.p);
-    out.push({ x, y, d, cols, f: l.f, wl: P([l.p[0], l.p[1], 0])[1] });
+    out.push({ x, y, d, cols: lv.map(x => x[0]), lv: lv.map(x => x[1]), f: l.f, wl: P([l.p[0], l.p[1], 0])[1] });
   }
   return out.sort((p, q) => q.d - p.d);
 }
@@ -982,13 +989,14 @@ function render(i, th) {
     const cls = L.f ? ' class="flash"' : '';
     const x = f1(L.x), y = f1(L.y);
     let core;
+    const lv = Math.max(...L.lv), rr = r * (.45 + .55 * lv);                  // himmenevä valo pienenee ja haalistuu
     if (L.cols.length === 2) {
-      core = `<path d="M${x},${f1(L.y-r)} A${r},${r} 0 0 0 ${x},${f1(L.y+r)} Z" fill="${COL[L.cols[0]]}"/><path d="M${x},${f1(L.y-r)} A${r},${r} 0 0 1 ${x},${f1(L.y+r)} Z" fill="${COL[L.cols[1]]}"/>`;
-    } else core = `<circle cx="${x}" cy="${y}" r="${r}" fill="${COL[L.cols[0]]}"/>`;
-    const gc = L.cols.length === 2 ? 'w' : L.cols[0];
-    lh += `<g${cls}><circle cx="${x}" cy="${y}" r="${f1(r*3.4)}" fill="url(#glow-${gc})"/>${core}<circle cx="${x}" cy="${y}" r="${f1(r*.42)}" fill="#fff" opacity=".75"/></g>`;
+      core = `<path d="M${x},${f1(L.y-rr)} A${f1(rr)},${f1(rr)} 0 0 0 ${x},${f1(L.y+rr)} Z" fill="${COL[L.cols[0]]}" opacity="${f1(L.lv[0] / lv)}"/><path d="M${x},${f1(L.y-rr)} A${f1(rr)},${f1(rr)} 0 0 1 ${x},${f1(L.y+rr)} Z" fill="${COL[L.cols[1]]}" opacity="${f1(L.lv[1] / lv)}"/>`;
+    } else core = `<circle cx="${x}" cy="${y}" r="${f1(rr)}" fill="${COL[L.cols[0]]}"/>`;
+    const gc = L.cols.length === 2 ? 'w' : L.cols[0], op = Math.min(1, .15 + .85 * lv).toFixed(2);
+    lh += `<g${cls} opacity="${op}"><circle cx="${x}" cy="${y}" r="${f1(rr*3.4)}" fill="url(#glow-${gc})"/>${core}<circle cx="${x}" cy="${y}" r="${f1(rr*.42)}" fill="#fff" opacity="${f1(.75 * lv)}"/></g>`;
     const len = Math.max(0, Math.min((L.wl - L.y) * .9, 560 - L.wl));
-    if (len > 2) rh += `<g${cls}><rect x="${f1(L.x - r*.55)}" y="${f1(L.wl + 2)}" width="${f1(r*1.1)}" height="${f1(len)}" fill="url(#refl-${gc})"/></g>`;
+    if (len > 2) rh += `<g${cls} opacity="${op}"><rect x="${f1(L.x - rr*.55)}" y="${f1(L.wl + 2)}" width="${f1(rr*1.1)}" height="${f1(len)}" fill="url(#refl-${gc})"/></g>`;
   }
   lightG.innerHTML = lh;
   reflG.innerHTML = rh;
@@ -1146,7 +1154,7 @@ stageBox.addEventListener('pointercancel', endDrag);
 
 /* ---------- quiz ---------- */
 function signature(i, th) {
-  const L = visibleLights(model(i), th).slice().sort((a, b) => a.y - b.y || a.x - b.x);
+  const L = visibleLights(model(i), th, .2).slice().sort((a, b) => a.y - b.y || a.x - b.x);
   return L.map(l => l.cols.join('') + (l.f ? '*' : '')).join('|');
 }
 function pickAngle(v, oblique) {
@@ -2813,13 +2821,15 @@ const SIM = (() => {
       // kulkuvalot
       const tl = Math.floor(performance.now() / 500) % 2;
       for (const l of T.m.lights) {
-        const cols = colorsAt(l, a);
-        if (!cols.length || (l.f && tl)) continue;
-        const w = toWorld(T, l.p), r = proj(...w), rr = Math.max(1.8, Math.min(8, 6 * Math.sqrt(600 / r[2])));
-        const c = cols[0];
-        lamps += `<circle cx="${f1(r[0])}" cy="${f1(r[1])}" r="${f1(rr * 3.2)}" fill="url(#glow-${c})"/><circle cx="${f1(r[0])}" cy="${f1(r[1])}" r="${f1(rr)}" fill="${COL[c]}"/>`;
-        const wy = HY - VY(elev(0, r[2]));
-        refl += `<rect x="${f1(r[0] - rr * .5)}" y="${f1(wy + 1)}" width="${f1(rr)}" height="${f1(Math.max(4, Math.min(H - wy, (wy - r[1]) * 1.2 + 8)))}" fill="url(#refl-${c})"/>`;
+        const lvs = lightLevels(l, a).filter(x => x[1] >= .03);
+        if (!lvs.length || (l.f && tl)) continue;
+        const w = toWorld(T, l.p), r = proj(...w);
+        for (const [c, lv] of lvs) {                                         // rajalla kaksi valoa himmenee ja kirkastuu ristiin
+          const rr = Math.max(1.8, Math.min(8, 6 * Math.sqrt(600 / r[2]))) * (.45 + .55 * lv), op = Math.min(1, .15 + .85 * lv).toFixed(2);
+          lamps += `<g opacity="${op}"><circle cx="${f1(r[0])}" cy="${f1(r[1])}" r="${f1(rr * 3.2)}" fill="url(#glow-${c})"/><circle cx="${f1(r[0])}" cy="${f1(r[1])}" r="${f1(rr)}" fill="${COL[c]}"/></g>`;
+          const wy = HY - VY(elev(0, r[2]));
+          refl += `<rect x="${f1(r[0] - rr * .5)}" y="${f1(wy + 1)}" width="${f1(rr)}" height="${f1(Math.max(4, Math.min(H - wy, (wy - r[1]) * 1.2 + 8)))}" fill="url(#refl-${c})" opacity="${op}"/>`;
+        }
       }
       if (s.names || s.peek || (s.enc && s.enc.T === T && s.enc.step > 1)) {
         const r = proj(T.x, T.y, 0);
