@@ -697,7 +697,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.28', APP_BUILD = '25.9.2026 10:31';
+const APP_VERSION = '2.29', APP_BUILD = '25.9.2026 10:44';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
@@ -2504,6 +2504,15 @@ const SIM = (() => {
       { x:-1315, y:-1477, r:170, name:'Lintupaaden väylän mutka', hint:'Aja pohjoiseen Lintupaaden väylää. Läntinen kardinaalimerkki Lintupaasi 1 jää oikealle. Käänny, kun Koirakarin valo muuttuu valkoiseksi (suuntima 035,5°–049°).' },
       { x:-300, y:-340, r:170, name:'Koirakarin edusta', hint:'Aja Koirakaria kohti valkoisessa sektorissa. Punainen tarkoittaa, että olet ajautunut vasemmalle, ja vihreä, että olet ajautunut oikealle. Itäinen Lintupaasi 3 jää vasemmalle.' },
       { x:-268, y:1700, r:190, name:'Länsisatama', hint:'Käänny pohjoiseen Länsisataman väylälle. Pidä punaiset M 1 ja M 3 vasemmalla ja vihreä M 2 oikealla.' },
+    ] },
+    // veneilijöiden tavallisin tulo Helsinkiin: Pihlajasaaren linja (Koirakari alempi Iso 5 s ja Pihlajasaari läntinen ylempi Oc 10 s, 012°)
+    { id:'linja', name:'Pihlajasaaren linjaa Länsisatamaan', start:{ ...LL(60.09582, 24.89775), hdg:12 },
+      events:[{ cp:1, id:'ferry', dist:0, dir:1 }], cps:[
+      cp(60.10487, 24.90177, 170, 'Katajaluodon länsipuoli', 'Aja suuntaan 012° Pihlajasaaren linjaa. Edessä on kaksi valkoista linjavaloa: alempi Koirakarilla (Iso 5 s) ja ylempi Pihlajasaarella (Oc 10 s). Kun valot ovat päällekkäin, olet linjalla. Jos ylempi on alemman oikealla puolella, ohjaa oikealle, ja jos vasemmalla, ohjaa vasemmalle. Vihreä Katajaluodon poiju (Fl G 3 s) jää oikealle.'),
+      cp(60.11076, 24.90439, 150, 'Lintupaaden itäpuoli', 'Pysy linjalla. Lintupaaden valo (VQ (5) 6 s) ja punainen poiju (Fl R 3 s) jäävät vasemmalle eli länteen, ja vihreä Tallskärin poiju (Fl G 3 s) oikealle. Samaa reittiä kulkevat myös matkustajalaivat, joten tarkkaile vastaantulevaa liikennettä.'),
+      cp(60.12494, 24.90515, 150, 'Koirakarin länsipuoli', 'Käänny pohjoiseen ennen Koirakaria. Koirakari jää oikealle noin 300 metrin päähän. Aja Länsisataman väylää.'),
+      cp(60.13950, 24.90540, 150, 'Pihlajasaaren länsipuoli', 'Jatka pohjoiseen. Punaiset poijut jäävät vasemmalle ja vihreä oikealle. Pihlajasaaret ovat oikealla pimeänä siluettina.'),
+      { x:-268, y:1700, r:190, name:'Länsisatama', hint:'Olet perillä Länsisataman edustalla.' },
     ] },
     { id:'kustaa', name:'Husunkivestä Kustaanmiekkaan', start:{ ...LL(60.14212, 24.94900), hdg:76 },
       events:[{ cp:-1, id:'pilot', dist:0, dir:1, hold:40 }, { cp:3, id:'kustaa', dist:800, dir:1 }], cps:[
