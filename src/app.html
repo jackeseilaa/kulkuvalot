@@ -686,7 +686,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.32', APP_BUILD = '__BUILD__';
+const APP_VERSION = '2.33', APP_BUILD = '__BUILD__';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
@@ -1679,6 +1679,24 @@ function chartSymbol(L, big = 1) {
 // merikartassa poijuja ja viittoja ei nimetä, joten niistä näytetään tyyppi (virallinen nimi näkyy vihjetekstissä)
 const KMARKNAME = { 1:'vasen sivumerkki', 2:'oikea sivumerkki', 3:'pohjoinen merkki', 4:'eteläinen merkki', 5:'läntinen merkki', 6:'itäinen merkki' };
 const kName = (L) => (L.type === 'Poiju' || L.type === 'Viitta') ? (KMARKNAME[L.nav] || L.type.toLowerCase()) : L.name;
+// linjamerkkiparit: kaksi linjamerkkiä samalla suunnalla; nimi väylän ja suunnan mukaan, esim. "Rysäkarin linja 042°".
+// at = nimen paikkaehdokkaat (etumerkki, takamerkki, välipisteet)
+function linePairs(list) {
+  const secMid = (L) => { const w = L.sec.find(x => x[2] === 'v') || L.sec[0]; return w ? norm(w[0] + norm(w[1] - w[0]) / 2) : null; };
+  const lm = list.filter(L => L.type === 'Linjamerkki' && L.sec.length), used = new Set(), out = [];
+  for (const A of lm) for (const B of lm) {
+    if (A === B || used.has(A) || used.has(B)) continue;
+    const c = secMid(A), cb = secMid(B);
+    if (c == null || cb == null || Math.abs(n180(c - cb)) > 4) continue;
+    const ab = brg(A.p[0], A.p[1], B.p[0], B.p[1]);                    // etumerkiltä takamerkille päin = kulkusuunta loistoja kohti
+    if (Math.abs(n180(ab - c)) > 6) continue;
+    used.add(A); used.add(B);
+    const fw = A.fw || B.fw, fwn = !fw ? 'Linja' : /talviväylä/i.test(fw) ? 'Talviväylän linja' : fw.replace(/ väylä$/, '') + ' linja';
+    out.push({ A, B, c, txt: `${fwn} ${String(Math.round(c)).padStart(3, '0')}°`,
+      at: [0, 1, .5, .25, .75].map(t => [A.p[0] + (B.p[0] - A.p[0]) * t, A.p[1] + (B.p[1] - A.p[1]) * t]) });
+  }
+  return out;
+}
 function kBuildChart() {
   const svg = $('kChart'); let s = '';
   s += `<rect x="-2400" y="-1900" width="4400" height="4500" fill="#0b1826"/><g id="kTiles"></g>`;
@@ -1708,19 +1726,7 @@ function kBuildChart() {
   }
   // kartan nimet: vain loistot, tutkamerkit ja linjat, ei poijuja eikä viittoja; ei päällekkäisiä
   // linja = kaksi linjamerkkiä samalla suunnalla; nimi väylän mukaan etumerkin (alemman) kohdalle, esim. "Rysäkarin linja 042°"
-  const secMid = (L) => { const w = L.sec.find(x => x[2] === 'v') || L.sec[0]; return w ? norm(w[0] + norm(w[1] - w[0]) / 2) : null; };
-  const lm = SL.filter(L => L.type === 'Linjamerkki' && L.sec.length), used = new Set(), lines2 = [];
-  for (const A of lm) for (const B of lm) {
-    if (A === B || used.has(A) || used.has(B)) continue;
-    const c = secMid(A), cb = secMid(B);
-    if (c == null || cb == null || Math.abs(n180(c - cb)) > 4) continue;
-    const ab = brg(A.p[0], A.p[1], B.p[0], B.p[1]);                    // etumerkiltä takamerkille päin = kulkusuunta loistoja kohti
-    if (Math.abs(n180(ab - c)) > 6) continue;
-    used.add(A); used.add(B);
-    const fw = A.fw || B.fw, fwn = !fw ? 'Linja' : /talviväylä/i.test(fw) ? 'Talviväylän linja' : fw.replace(/ väylä$/, '') + ' linja';
-    // nimi etumerkin kohdalle; jos ei mahdu, takamerkin kohdalle tai linjan puoliväliin
-    lines2.push({ L: A, at: [0, 1, .5, .25, .75].map(t => [A.p[0] + (B.p[0] - A.p[0]) * t, A.p[1] + (B.p[1] - A.p[1]) * t]), pr: 2, txt: `${fwn} ${String(Math.round(c)).padStart(3, '0')}°` });
-  }
+  const lines2 = linePairs(SL).map(q => ({ L: q.A, at: q.at, pr: 2, txt: q.txt }));
   const cand = [...SL.filter(L => L !== KMAIN && L.type !== 'Poiju' && L.type !== 'Viitta' && L.type !== 'Linjamerkki')
     .map(L => ({ L, pr: /Sektori|majakka/i.test(L.type) ? 0 : 1, txt: L.name })), ...lines2].sort((a, b) => a.pr - b.pr);
   const boxes = [{ x0: 0, x1: 110 + KMAIN.name.length * 72, y0: -200, y1: 60 }];   // pääloiston nimi
@@ -2958,7 +2964,10 @@ const SIM = (() => {
     g += `<g class="sim-places">${PLACES.map(([n, x, y]) => `<text x="${f1(x)}" y="${f1(-y)}" text-anchor="middle">${n}</text>`).join('')}</g>`;
     g += '</g>';
     g += `<polygon points="${AREA.map(p => f1(p[0]) + ',' + f1(-p[1])).join(' ')}" fill="none" stroke="#d9a34b" stroke-opacity=".7" stroke-dasharray="10 7" vector-effect="non-scaling-stroke" stroke-width="1.4"><title>Harjoitusalueen raja</title></polygon>`;
-    g += `<g class="sim-names">${KL.map(L => `<text x="${L.p[0] + 70}" y="${-L.p[1] + 25}" class="kc-small sim-sm">${L.name}</text>`).join('')}</g>`;
+    // nimet: loistot ja tutkamerkit sekä linjat yhdellä nimellä; poijut ja viitat näkyvät vain symbolina, kuten merikartassa
+    const nm = KL.filter(L => L.type !== 'Poiju' && L.type !== 'Viitta' && L.type !== 'Linjamerkki').map(L => [L.p[0], L.p[1], L.name])
+      .concat(linePairs(KL).map(q => [q.A.p[0], q.A.p[1], q.txt]));
+    g += `<g class="sim-names">${nm.map(([x, y, t]) => `<text x="${f1(x + 70)}" y="${f1(-y + 25)}" class="kc-small sim-sm">${t}</text>`).join('')}</g>`;
     return g;
   }
   function cpsSvg() {
