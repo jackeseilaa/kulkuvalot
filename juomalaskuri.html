@@ -105,10 +105,6 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
       <label>Kappaletta
         <input type="number" id="qty" inputmode="numeric" min="1" step="1" value="1" required>
       </label>
-      <div class="wide">
-        <div class="note" style="margin-bottom:4px">Ruokailu (vaikuttaa imeytymiseen)</div>
-        <div class="chips seg" id="foodBtns" style="margin:0"></div>
-      </div>
       <button class="primary" type="submit" id="submitBtn">Lisää ja laske</button>
       <button class="cancel" type="button" id="cancelEdit" hidden>Peruuta muokkaus</button>
     </form>
@@ -150,6 +146,42 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
     <p><button type="button" id="clear" hidden>Tyhjennä kaikki</button></p>
   </section>
 
+  <section class="card">
+    <h2>Ruokailu</h2>
+    <p class="note" style="margin-top:0">Ruoka hidastaa alkoholin imeytymistä. Laskuri katsoo, milloin söit ennen kutakin juomaa. Ilman kirjattua ruokailua oletetaan tyhjä vatsa.</p>
+    <form id="mealForm" onsubmit="return false">
+      <label class="wide">Ruokailun kellonaika
+        <input type="datetime-local" id="mealWhen">
+      </label>
+      <div class="wide chips" id="mealChips" style="margin:0"></div>
+      <div class="wide chips" style="margin:0" id="mealAdd"></div>
+    </form>
+    <ul id="mealList" style="margin-top:12px"></ul>
+  </section>
+
+  <section class="card">
+    <h2>Veden juonti</h2>
+    <div class="chips" id="waterChips"></div>
+    <p class="note" id="waterInfo" style="margin:0"></p>
+    <ul id="waterList" style="margin-top:12px"></ul>
+  </section>
+
+  <section class="card">
+    <h2>Nukkuminen</h2>
+    <form id="sleepForm" onsubmit="return false">
+      <label class="wide">Nukkumaan
+        <input type="datetime-local" id="sleepStart">
+      </label>
+      <label class="wide">Herätys
+        <input type="datetime-local" id="sleepEnd">
+      </label>
+      <div class="wide chips" id="sleepChips" style="margin:0"></div>
+      <button class="primary" type="button" id="saveSleep">Tallenna uni</button>
+      <button class="cancel" type="button" id="clearSleep" hidden>Poista uni</button>
+    </form>
+    <p id="sleepInfo" style="margin-bottom:0"></p>
+  </section>
+
   <p class="note">Arvio perustuu Widmarkin kaavaan ja Watsonin kehon vesimäärän kaavaan, jotka käyttävät ikää, pituutta ja painoa (alkoholia 0,789 g/ml, tasainen palaminen, imeytyminen ruokailun mukaan). Aikaisin ja viimeisin haihtumisaika kattavat palamisnopeuden vaihtelun, joka on tyypillisesti 0,10–0,20 ‰ tunnissa. Laskuri ei tiedä lääkkeistä, sairauksista, väsymyksestä tai maksan kunnosta, jotka voivat hidastaa palamista. Todellinen arvo vaihtelee ihmisen, syömisen ja väsymyksen mukaan. Työajossa ja ennen ajoa jätä reilusti ylimääräistä aikaa. Ajokunnon varmistaa vain puhallus.</p>
 </main>
 
@@ -163,7 +195,7 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
   var G_PER_ML = 0.789;
   var KEY = "juomalaskuri-v1";
   var $ = function (id) { return document.getElementById(id); };
-  var state = { drinks: [], weight: 85, height: 188, age: 64, sex: "m", beta: 0.15, food: "light", margin: 60 };
+  var state = { drinks: [], weight: 85, height: 188, age: 64, sex: "m", beta: 0.15, margin: 60, meals: [], water: [], sleep: null };
   // Watsonin kaava: kehon vesimäärä (l) -> jakautumistilavuus verelle (kg)
   function distKg() {
     var w = state.weight, h = state.height, a = state.age;
@@ -198,24 +230,46 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
   // Ruoka hidastaa imeytymistä (ka = imeytymisnopeus 1/min) ja pienentää imeytyvää osuutta (F)
   var FOOD = { empty: { ka: 0.07, F: 1.0 }, light: { ka: 0.04, F: 0.95 }, full: { ka: 0.02, F: 0.9 } };
 
+  // Ruokailun vaikutus juomahetkellä: täysi ateria 3 h ja kevyt syöminen 2 h (täysi vielä 3-6 h kevyenä)
+  var RANK = { empty: 0, light: 1, full: 2 };
+  function foodAt(t) {
+    var best = "empty";
+    state.meals.forEach(function (m) {
+      var age = (t - m.t) / 60000;
+      if (age < 0) return;
+      var lvl = m.size === "full" ? (age <= 180 ? "full" : age <= 360 ? "light" : "empty") : (age <= 120 ? "light" : "empty");
+      if (RANK[lvl] > RANK[best]) best = lvl;
+    });
+    return best;
+  }
+
   function simulate(beta) {
     var ds = state.drinks.slice().sort(function (a, b) { return a.t - b.t; });
     if (!ds.length) return null;
-    var STEP = 60000, kg = distKg(), perMin = beta / 60, f = FOOD[state.food] || FOOD.light;
+    var STEP = 60000, kg = distKg(), perMin = beta / 60;
     var lastT = ds[ds.length - 1].t;
-    var t = ds[0].t, A = 0, S = 0, i = 0, pts = [], peak = 0, under05 = null, zero = null, nowBac = null;
-    var now = Date.now(), cap = t + 96 * 3600000;
+    var t = ds[0].t, A = 0, i = 0, pts = [], peak = 0, under05 = null, zero = null, nowBac = null;
+    var doses = [], now = Date.now(), cap = t + 96 * 3600000;
     while (t <= cap) {
-      while (i < ds.length && ds[i].t <= t) { S += ds[i].g; i++; }
-      var ab = S * (1 - Math.exp(-f.ka));
-      S -= ab; A += ab * f.F;
+      while (i < ds.length && ds[i].t <= t) {
+        var fd = FOOD[foodAt(ds[i].t)];
+        doses.push({ S: ds[i].g, ka: fd.ka, F: fd.F });
+        i++;
+      }
+      var pending = 0, left = 0;
+      doses.forEach(function (d) {
+        if (d.S <= 0) return;
+        var ab = d.S * (1 - Math.exp(-d.ka));
+        d.S -= ab; A += ab * d.F;
+        pending += d.S * d.F; left += d.S;
+      });
       var bac = A / kg;
       if (bac > peak) peak = bac;
       pts.push([t, bac]);
       if (nowBac === null && t >= now) nowBac = bac;
       if (i === ds.length) {
-        if (under05 === null && bac <= 0.5 && bac + S * f.F / kg <= 0.5) under05 = t;
-        if (S < 0.01 && A <= 0) { zero = t; break; }
+        if (under05 === null && bac <= 0.5 && bac + pending / kg <= 0.5) under05 = t;
+        if (bac < 0.01 && pending / kg < 0.01) { zero = t; break; }
       }
       A = Math.max(0, A - perMin * kg);
       t += STEP;
@@ -319,6 +373,78 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
       sim.slowZero = simulate(state.beta * 0.67).zero;
     }
     renderResult(sim); renderChart(sim); renderList();
+    renderMeals(); renderWater(sim); renderSleep(sim);
+  }
+
+  function bacAt(sim, t) {
+    var idx = Math.round((t - sim.pts[0][0]) / 60000);
+    return idx < 0 || idx >= sim.pts.length ? 0 : sim.pts[idx][1];
+  }
+
+  function addRow(ul, title, sub, onRemove) {
+    var li = document.createElement("li");
+    var sp = document.createElement("span");
+    sp.textContent = title;
+    var sm = document.createElement("small");
+    sm.textContent = sub;
+    sp.appendChild(sm);
+    var b = document.createElement("button");
+    b.type = "button"; b.textContent = "Poista";
+    b.addEventListener("click", onRemove);
+    li.appendChild(sp); li.appendChild(b); ul.appendChild(li);
+  }
+
+  function renderMeals() {
+    var ul = $("mealList");
+    ul.innerHTML = "";
+    state.meals.map(function (m, idx) { return { m: m, idx: idx }; })
+      .sort(function (a, b) { return a.m.t - b.m.t; })
+      .forEach(function (o) {
+        addRow(ul, o.m.size === "full" ? "Täysi ateria" : "Kevyt syöminen", fmt(o.m.t), function () {
+          state.meals.splice(o.idx, 1); save(); render();
+        });
+      });
+  }
+
+  function renderWater(sim) {
+    var ul = $("waterList");
+    ul.innerHTML = "";
+    var total = 0;
+    state.water.map(function (w, idx) { return { w: w, idx: idx }; })
+      .sort(function (a, b) { return a.w.t - b.w.t; })
+      .forEach(function (o) {
+        total += o.w.ml;
+        addRow(ul, num(o.w.ml / 100, 0) + " dl vettä", fmt(o.w.t), function () {
+          state.water.splice(o.idx, 1); save(); render();
+        });
+      });
+    var doses = sim ? sim.grams / 12 : 0;
+    var goal = Math.ceil(doses) * 200;
+    var txt = "Vettä yhteensä " + num(total / 100, 0) + " dl.";
+    if (doses > 0) txt += " Tavoite noin 2 dl jokaista alkoholiannosta kohden, eli " + num(goal / 100, 0) + " dl.";
+    txt += " Vesi ehkäisee kuivumista ja krapulaa, mutta ei nopeuta alkoholin palamista, joten se ei muuta haihtumisaikaa.";
+    $("waterInfo").textContent = txt;
+  }
+
+  function renderSleep(sim) {
+    var el = $("sleepInfo");
+    $("clearSleep").hidden = !state.sleep;
+    if (!state.sleep) {
+      el.className = "note";
+      el.textContent = "Tallenna nukkumaanmeno ja herätys, niin näet arvion promilleista herätessä. Nukkuminen ei nopeuta alkoholin palamista.";
+      return;
+    }
+    var s = state.sleep.s, e = state.sleep.e;
+    var html = "Uni " + fmt(s) + " – " + fmt(e) + " (" + dur(e - s) + ").";
+    if (sim) {
+      var wake = bacAt(sim, e), okAt = sim.slowZero + state.margin * 60000;
+      html += "<br>Nukkumaan mennessä arvio " + num(bacAt(sim, s), 2) + " ‰, herätessä " + num(wake, 2) + " ‰.";
+      html += '<br><b class="' + (e >= okAt ? "ok" : "bad") + '">' + (e >= okAt
+        ? "Nollaraja alittuu ennen heräämistä."
+        : "Herätessä nollaraja ei vielä täyty, ajoon aikaisintaan " + fmt(okAt) + ".") + "</b>";
+    }
+    el.className = "";
+    el.innerHTML = html;
   }
 
   // pikavalinnat
@@ -378,33 +504,65 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
     save(); render();
   }
   ["weight", "height", "age", "sex", "beta", "margin"].forEach(function (id) { $(id).addEventListener("change", readSettings); });
-  var FOODS = [["empty", "Tyhjä vatsa"], ["light", "Kevyt syöminen"], ["full", "Täysi ateria (2 h sisällä)"]];
-  function markFood() {
-    Array.prototype.forEach.call($("foodBtns").children, function (b) {
-      b.setAttribute("aria-pressed", b.getAttribute("data-v") === state.food ? "true" : "false");
+  function timeChips(box, input) {
+    [["Nyt", 0], ["−15 min", 15], ["−30 min", 30], ["−1 h", 60], ["−2 h", 120], ["−3 h", 180]].forEach(function (c) {
+      var b = document.createElement("button");
+      b.type = "button"; b.textContent = c[0];
+      b.addEventListener("click", function () { input.value = localInput(new Date(Date.now() - c[1] * 60000)); });
+      box.appendChild(b);
     });
   }
-  FOODS.forEach(function (f) {
-    var b = document.createElement("button");
-    b.type = "button"; b.textContent = f[1]; b.setAttribute("data-v", f[0]);
-    b.addEventListener("click", function () { state.food = f[0]; markFood(); save(); render(); });
-    $("foodBtns").appendChild(b);
-  });
-  [["Nyt", 0], ["−15 min", 15], ["−30 min", 30], ["−1 h", 60], ["−2 h", 120], ["−3 h", 180]].forEach(function (c) {
+  timeChips($("timeChips"), $("when"));
+  timeChips($("mealChips"), $("mealWhen"));
+
+  [["Lisää kevyt syöminen", "light"], ["Lisää täysi ateria", "full"]].forEach(function (c) {
     var b = document.createElement("button");
     b.type = "button"; b.textContent = c[0];
-    b.addEventListener("click", function () { $("when").value = localInput(new Date(Date.now() - c[1] * 60000)); });
-    $("timeChips").appendChild(b);
+    b.addEventListener("click", function () {
+      var t = new Date($("mealWhen").value).getTime();
+      if (!isFinite(t)) return;
+      state.meals.push({ t: t, size: c[1] });
+      save(); render();
+    });
+    $("mealAdd").appendChild(b);
   });
+
+  [200, 300, 500].forEach(function (ml) {
+    var b = document.createElement("button");
+    b.type = "button"; b.textContent = "+" + num(ml / 100, 0) + " dl vettä";
+    b.addEventListener("click", function () { state.water.push({ t: Date.now(), ml: ml }); save(); render(); });
+    $("waterChips").appendChild(b);
+  });
+
+  [6, 7, 8, 9].forEach(function (h) {
+    var b = document.createElement("button");
+    b.type = "button"; b.textContent = h + " h unta";
+    b.addEventListener("click", function () {
+      var s = new Date($("sleepStart").value).getTime();
+      if (isFinite(s)) $("sleepEnd").value = localInput(new Date(s + h * 3600000));
+    });
+    $("sleepChips").appendChild(b);
+  });
+  $("saveSleep").addEventListener("click", function () {
+    var s = new Date($("sleepStart").value).getTime(), e = new Date($("sleepEnd").value).getTime();
+    if (!isFinite(s) || !isFinite(e) || e <= s) return;
+    state.sleep = { s: s, e: e };
+    save(); render();
+  });
+  $("clearSleep").addEventListener("click", function () { state.sleep = null; save(); render(); });
 
   load();
   if (state.sex !== "m" && state.sex !== "f") state.sex = "m";
   $("weight").value = state.weight; $("height").value = state.height; $("age").value = state.age;
   $("beta").value = state.beta; $("sex").value = state.sex;
-  if (!FOOD[state.food]) state.food = "light";
-  markFood();
+  if (!Array.isArray(state.meals)) state.meals = [];
+  if (!Array.isArray(state.water)) state.water = [];
   $("margin").value = state.margin;
   $("when").value = localInput(new Date());
+  $("mealWhen").value = localInput(new Date());
+  var sl0 = state.sleep || { s: Date.now(), e: Date.now() + 7 * 3600000 };
+  $("sleepStart").value = localInput(new Date(sl0.s));
+  $("sleepEnd").value = localInput(new Date(sl0.e));
   render();
   setInterval(render, 60000);
 })();
