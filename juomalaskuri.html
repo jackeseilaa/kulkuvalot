@@ -1,0 +1,306 @@
+<title>Juomalaskuri</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: yksi kapea sarake, tulos ylhäällä, lomake alla, käyrä ja juomalista viimeisenä */
+:root {
+  --bg: #eef2f4;
+  --surface: #ffffff;
+  --fg: #14232b;
+  --muted: #5b6d77;
+  --line: #d3dce1;
+  --accent: #0b6b8a;
+  --accent-fg: #ffffff;
+  --ok: #1a7f4b;
+  --warn: #a8620a;
+  --bad: #b3261e;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-head: "Space Grotesk", "Inter", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1a20; --surface: #16262e; --fg: #e6eef2; --muted: #93a7b1; --line: #2a3f4a;
+    --accent: #4cb6d6; --accent-fg: #06222c; --ok: #4cc88a; --warn: #e8a24a; --bad: #f07a72;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1a20; --surface: #16262e; --fg: #e6eef2; --muted: #93a7b1; --line: #2a3f4a;
+  --accent: #4cb6d6; --accent-fg: #06222c; --ok: #4cc88a; --warn: #e8a24a; --bad: #f07a72;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+main { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+h1 { font-family: var(--font-head); font-size: 24px; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--font-head); font-size: 14px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+.result { border-color: var(--accent); }
+.big { font-family: var(--font-head); font-size: 34px; font-weight: 700; line-height: 1.15; }
+.sub { color: var(--muted); margin-top: 4px; }
+.rows { display: grid; gap: 8px; margin-top: 14px; }
+.row { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; border-top: 1px solid var(--line); padding-top: 8px; }
+.row b { font-variant-numeric: tabular-nums; text-align: right; }
+.pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; border: 1px solid currentColor; }
+.ok { color: var(--ok); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); min-width: 0; }
+label.wide { grid-column: 1 / -1; }
+input, select {
+  font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+  padding: 9px 10px; width: 100%; min-width: 0;
+}
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button {
+  font: inherit; font-weight: 600; cursor: pointer; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--fg); padding: 9px 12px;
+}
+button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); grid-column: 1 / -1; padding: 11px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.chips button { font-weight: 500; font-size: 13px; padding: 6px 10px; }
+ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+li { display: flex; justify-content: space-between; align-items: center; gap: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+li:first-child { border-top: 0; padding-top: 0; }
+li span { min-width: 0; }
+li small { color: var(--muted); display: block; }
+li button { padding: 4px 10px; font-weight: 500; }
+details summary { cursor: pointer; font-weight: 600; }
+.settings { margin-top: 12px; }
+.note { font-size: 13px; color: var(--muted); }
+svg { width: 100%; height: auto; display: block; }
+svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
+.empty { color: var(--muted); }
+</style>
+
+<main>
+  <h1>Juomalaskuri</h1>
+
+  <section class="card result" aria-live="polite" id="result"></section>
+
+  <section class="card">
+    <h2>Lisää juoma</h2>
+    <div class="chips" id="chips"></div>
+    <form id="form">
+      <label class="wide">Kellonaika
+        <input type="datetime-local" id="when" required>
+      </label>
+      <label>Määrä (ml)
+        <input type="number" id="ml" inputmode="decimal" min="1" step="any" value="330" required>
+      </label>
+      <label>Vahvuus (%)
+        <input type="number" id="abv" inputmode="decimal" min="0.1" max="96" step="any" value="4.7" required>
+      </label>
+      <label>Kappaletta
+        <input type="number" id="qty" inputmode="numeric" min="1" step="1" value="1" required>
+      </label>
+      <button class="primary" type="submit">Lisää ja laske</button>
+    </form>
+    <details class="settings">
+      <summary>Omat tiedot</summary>
+      <form id="settingsForm" style="margin-top:10px">
+        <label>Paino (kg)
+          <input type="number" id="weight" inputmode="decimal" min="30" max="250" step="any" value="80">
+        </label>
+        <label>Sukupuoli (laskentakerroin)
+          <select id="sex"><option value="0.7">Mies (0,70)</option><option value="0.6">Nainen (0,60)</option></select>
+        </label>
+        <label>Palaminen (‰ / h)
+          <input type="number" id="beta" inputmode="decimal" min="0.05" max="0.3" step="0.01" value="0.15">
+        </label>
+      </form>
+      <p class="note">Tiedot tallentuvat tähän selaimeen, joten ne täytetään vain kerran.</p>
+    </details>
+  </section>
+
+  <section class="card" id="chartCard" hidden>
+    <h2>Promilleet ajan mukaan</h2>
+    <div id="chart"></div>
+  </section>
+
+  <section class="card">
+    <h2>Juomat</h2>
+    <ul id="list"></ul>
+    <p class="empty" id="emptyMsg">Ei juomia vielä. Valitse pikavalinta ja paina Lisää ja laske.</p>
+    <p><button type="button" id="clear" hidden>Tyhjennä kaikki</button></p>
+  </section>
+
+  <p class="note">Arvio perustuu Widmarkin kaavaan (alkoholia 0,789 g/ml, tasainen palaminen, imeytyminen heti). Todellinen arvo vaihtelee ihmisen, syömisen ja väsymyksen mukaan. Työajossa ja ennen ajoa jätä reilusti ylimääräistä aikaa. Ajokunnon varmistaa vain puhallus.</p>
+</main>
+
+<script>
+(function () {
+  var PRESETS = [
+    ["Keskiolut 0,33 l", 330, 4.7], ["Keskiolut 0,5 l", 500, 4.7], ["Siideri 0,33 l", 330, 4.5],
+    ["Vahva olut 0,33 l", 330, 7], ["Viini 12 cl", 120, 12], ["Viini 16 cl", 160, 12],
+    ["Shotti 4 cl", 40, 40], ["Drinkki 4 cl", 40, 37.5]
+  ];
+  var G_PER_ML = 0.789;
+  var KEY = "juomalaskuri-v1";
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { drinks: [], weight: 80, r: 0.7, beta: 0.15 };
+
+  function load() {
+    try { var s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s) { state = Object.assign(state, s); } } catch (e) {}
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function localInput(d) {
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
+  }
+  var DAYS = ["su", "ma", "ti", "ke", "to", "pe", "la"];
+  function fmt(ms) {
+    var d = new Date(ms), now = new Date();
+    var a = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    var b = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    var diff = Math.round((a - b) / 86400000);
+    var day = diff === 0 ? "tänään" : diff === 1 ? "huomenna" : diff === -1 ? "eilen" : DAYS[d.getDay()] + " " + d.getDate() + "." + (d.getMonth() + 1) + ".";
+    return day + " klo " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+  }
+  function dur(ms) {
+    var m = Math.max(0, Math.round(ms / 60000)), h = Math.floor(m / 60);
+    return h + " h " + pad(m % 60) + " min";
+  }
+  function num(x, dec) { return x.toFixed(dec).replace(".", ","); }
+
+  function simulate() {
+    var ds = state.drinks.slice().sort(function (a, b) { return a.t - b.t; });
+    if (!ds.length) return null;
+    var STEP = 60000, kg = state.weight * state.r, perMin = state.beta / 60;
+    var lastT = ds[ds.length - 1].t;
+    var t = ds[0].t, bac = 0, i = 0, pts = [], peak = 0, under05 = null, zero = null, nowBac = null;
+    var now = Date.now(), cap = t + 96 * 3600000;
+    while (t <= cap) {
+      while (i < ds.length && ds[i].t <= t) { bac += ds[i].g / kg; i++; }
+      if (bac > peak) peak = bac;
+      pts.push([t, bac]);
+      if (nowBac === null && t >= now) nowBac = bac;
+      if (i === ds.length) {
+        if (under05 === null && bac <= 0.5) under05 = t;
+        if (bac <= 0) { zero = t; break; }
+      }
+      bac = Math.max(0, bac - perMin);
+      t += STEP;
+    }
+    if (nowBac === null) nowBac = 0;
+    var grams = ds.reduce(function (s, d) { return s + d.g; }, 0);
+    return { pts: pts, peak: peak, under05: under05, zero: zero, nowBac: now < ds[0].t ? 0 : nowBac, grams: grams, lastT: lastT, now: now };
+  }
+
+  function renderResult(sim) {
+    var el = $("result");
+    if (!sim) {
+      el.innerHTML = '<div class="sub">Alkoholi on haihtunut</div><div class="big">Lisää juoma</div><p class="sub">Syötä kellonaika, määrä ja vahvuus, niin näet milloin veressä ei ole enää alkoholia.</p>';
+      return;
+    }
+    var cls = sim.nowBac >= 0.5 ? "bad" : sim.nowBac > 0 ? "warn" : "ok";
+    var status = sim.nowBac >= 0.5 ? "Yli 0,5 ‰ nyt" : sim.nowBac > 0 ? "Alkoholia veressä" : "Alkoholia ei enää veressä";
+    var html = '<div class="sub">Alkoholi on haihtunut</div><div class="big">' + fmt(sim.zero) + '</div>';
+    if (sim.zero > sim.now) html += '<div class="sub">Vielä ' + dur(sim.zero - sim.now) + '</div>';
+    html += '<div style="margin-top:10px"><span class="pill ' + cls + '">' + status + '</span></div>';
+    html += '<div class="rows">';
+    html += '<div class="row"><span>Arvio nyt</span><b>' + num(sim.nowBac, 2) + ' ‰</b></div>';
+    html += '<div class="row"><span>Huippu</span><b>' + num(sim.peak, 2) + ' ‰</b></div>';
+    html += '<div class="row"><span>Alle 0,5 ‰</span><b>' + (sim.under05 <= sim.lastT && sim.peak < 0.5 ? "koko ajan" : fmt(sim.under05)) + '</b></div>';
+    html += '<div class="row"><span>Alkoholia yhteensä</span><b>' + num(sim.grams, 0) + ' g (' + num(sim.grams / 12, 1) + ' annosta)</b></div>';
+    html += '</div>';
+    el.innerHTML = html;
+  }
+
+  function renderChart(sim) {
+    var card = $("chartCard");
+    if (!sim || sim.pts.length < 2) { card.hidden = true; return; }
+    card.hidden = false;
+    var W = 560, H = 190, L = 34, R = 10, T = 12, B = 26;
+    var t0 = sim.pts[0][0], t1 = sim.pts[sim.pts.length - 1][0];
+    var ymax = Math.max(0.6, Math.ceil(sim.peak * 5) / 5);
+    var x = function (t) { return L + (t - t0) / (t1 - t0) * (W - L - R); };
+    var y = function (v) { return T + (1 - v / ymax) * (H - T - B); };
+    var d = "", step = Math.max(1, Math.floor(sim.pts.length / 240));
+    for (var k = 0; k < sim.pts.length; k += step) d += (d ? "L" : "M") + x(sim.pts[k][0]).toFixed(1) + " " + y(sim.pts[k][1]).toFixed(1);
+    d += "L" + x(t1).toFixed(1) + " " + y(0).toFixed(1);
+    var s = '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Promillekäyrä">';
+    for (var v = 0; v <= ymax + 1e-9; v += ymax > 1.5 ? 0.5 : 0.2) {
+      s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="var(--line)" stroke-width="1"/>';
+      s += '<text x="' + (L - 5) + '" y="' + (y(v) + 4) + '" text-anchor="end">' + num(v, 1) + '</text>';
+    }
+    s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(0.5) + '" y2="' + y(0.5) + '" stroke="var(--bad)" stroke-width="1" stroke-dasharray="4 3"/>';
+    s += '<path d="' + d + '" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"/>';
+    var n = 4;
+    for (var q = 0; q <= n; q++) {
+      var tt = t0 + (t1 - t0) * q / n, dd = new Date(tt);
+      s += '<text x="' + x(tt) + '" y="' + (H - 6) + '" text-anchor="' + (q === 0 ? "start" : q === n ? "end" : "middle") + '">' + pad(dd.getHours()) + ":" + pad(dd.getMinutes()) + '</text>';
+    }
+    if (sim.now >= t0 && sim.now <= t1) {
+      s += '<line x1="' + x(sim.now) + '" x2="' + x(sim.now) + '" y1="' + T + '" y2="' + (H - B) + '" stroke="var(--fg)" stroke-width="1" stroke-dasharray="2 3"/>';
+    }
+    s += '</svg><p class="note">Katkoviiva 0,5 ‰ on ajoraja. Pystyviiva kertoo nykyhetken.</p>';
+    $("chart").innerHTML = s;
+  }
+
+  function renderList() {
+    var ul = $("list");
+    ul.innerHTML = "";
+    var ds = state.drinks.map(function (d, idx) { return { d: d, idx: idx }; }).sort(function (a, b) { return a.d.t - b.d.t; });
+    ds.forEach(function (o) {
+      var li = document.createElement("li");
+      var sp = document.createElement("span");
+      sp.textContent = o.d.label;
+      var sm = document.createElement("small");
+      sm.textContent = fmt(o.d.t) + " · " + num(o.d.g, 1) + " g alkoholia";
+      sp.appendChild(sm);
+      var b = document.createElement("button");
+      b.type = "button"; b.textContent = "Poista";
+      b.addEventListener("click", function () { state.drinks.splice(o.idx, 1); save(); render(); });
+      li.appendChild(sp); li.appendChild(b); ul.appendChild(li);
+    });
+    $("emptyMsg").hidden = state.drinks.length > 0;
+    $("clear").hidden = state.drinks.length === 0;
+  }
+
+  function render() {
+    var sim = simulate();
+    renderResult(sim); renderChart(sim); renderList();
+  }
+
+  // pikavalinnat
+  PRESETS.forEach(function (p) {
+    var b = document.createElement("button");
+    b.type = "button"; b.textContent = p[0];
+    b.addEventListener("click", function () { $("ml").value = p[1]; $("abv").value = p[2]; });
+    $("chips").appendChild(b);
+  });
+
+  $("form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var t = new Date($("when").value).getTime();
+    var ml = parseFloat($("ml").value), abv = parseFloat($("abv").value), qty = parseInt($("qty").value, 10) || 1;
+    if (!isFinite(t) || !(ml > 0) || !(abv > 0)) return;
+    var g = ml * abv / 100 * G_PER_ML;
+    var label = (qty > 1 ? qty + " × " : "") + num(ml, 0) + " ml, " + num(abv, 1) + " %";
+    state.drinks.push({ t: t, g: g * qty, label: label });
+    save(); render();
+  });
+
+  $("clear").addEventListener("click", function () { state.drinks = []; save(); render(); });
+
+  function readSettings() {
+    var w = parseFloat($("weight").value), b = parseFloat($("beta").value);
+    if (w > 0) state.weight = w;
+    if (b > 0) state.beta = b;
+    state.r = parseFloat($("sex").value);
+    save(); render();
+  }
+  ["weight", "sex", "beta"].forEach(function (id) { $(id).addEventListener("change", readSettings); });
+
+  load();
+  $("weight").value = state.weight; $("beta").value = state.beta; $("sex").value = String(state.r);
+  $("when").value = localInput(new Date());
+  render();
+  setInterval(render, 60000);
+})();
+</script>
