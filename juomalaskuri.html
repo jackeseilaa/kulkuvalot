@@ -68,6 +68,11 @@ li:first-child { border-top: 0; padding-top: 0; }
 li span { min-width: 0; }
 li small { color: var(--muted); display: block; }
 li button { padding: 4px 10px; font-weight: 500; }
+.btns { display: flex; gap: 6px; flex-shrink: 0; }
+button.cancel { grid-column: 1 / -1; }
+.driver { margin-top: 14px; border: 2px solid currentColor; border-radius: 8px; padding: 10px 12px; }
+.driver .t { font-family: var(--font-head); font-size: 20px; font-weight: 700; }
+.driver .d { color: var(--muted); font-size: 13px; }
 details summary { cursor: pointer; font-weight: 600; }
 .settings { margin-top: 12px; }
 .note { font-size: 13px; color: var(--muted); }
@@ -104,7 +109,8 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
           <option value="full">Täysi ateria viimeisen 2 h aikana</option>
         </select>
       </label>
-      <button class="primary" type="submit">Lisää ja laske</button>
+      <button class="primary" type="submit" id="submitBtn">Lisää ja laske</button>
+      <button class="cancel" type="button" id="cancelEdit" hidden>Peruuta muokkaus</button>
     </form>
     <details class="settings">
       <summary>Omat tiedot</summary>
@@ -120,6 +126,9 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
         </label>
         <label>Sukupuoli
           <select id="sex"><option value="m">Mies</option><option value="f">Nainen</option></select>
+        </label>
+        <label>Ajoon varmuusaika (min)
+          <input type="number" id="margin" inputmode="numeric" min="0" max="600" step="5" value="60">
         </label>
         <label>Palaminen (‰ / h)
           <input type="number" id="beta" inputmode="decimal" min="0.05" max="0.3" step="0.01" value="0.15">
@@ -154,7 +163,7 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
   var G_PER_ML = 0.789;
   var KEY = "juomalaskuri-v1";
   var $ = function (id) { return document.getElementById(id); };
-  var state = { drinks: [], weight: 85, height: 188, age: 64, sex: "m", beta: 0.15, food: "light" };
+  var state = { drinks: [], weight: 85, height: 188, age: 64, sex: "m", beta: 0.15, food: "light", margin: 60 };
   // Watsonin kaava: kehon vesimäärä (l) -> jakautumistilavuus verelle (kg)
   function distKg() {
     var w = state.weight, h = state.height, a = state.age;
@@ -227,6 +236,11 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
     var html = '<div class="sub">Alkoholi on haihtunut</div><div class="big">' + fmt(sim.zero) + '</div>';
     if (sim.zero > sim.now) html += '<div class="sub">Vielä ' + dur(sim.zero - sim.now) + '</div>';
     html += '<div style="margin-top:10px"><span class="pill ' + cls + '">' + status + '</span></div>';
+    var okAt = sim.slowZero + state.margin * 60000, driveOk = sim.now >= okAt;
+    html += '<div class="driver ' + (driveOk ? "ok" : "bad") + '">';
+    html += '<div class="d">Kuljettajan nollaraja (0,0 ‰)</div>';
+    html += '<div class="t">' + (driveOk ? "Nollaraja alittuu, voit ajaa työvuoroon" : "Ei ajoon ennen " + fmt(okAt)) + '</div>';
+    html += '<div class="d">Hidas palaminen + ' + state.margin + ' min varmuusaika' + (driveOk ? "" : ", vielä " + dur(okAt - sim.now)) + '</div></div>';
     html += '<div class="rows">';
     html += '<div class="row"><span>Aikaisintaan (nopea palaminen)</span><b>' + fmt(sim.fastZero) + '</b></div>';
     html += '<div class="row"><span>Varmasti viimeistään (hidas palaminen)</span><b>' + fmt(sim.slowZero) + '</b></div>';
@@ -280,10 +294,19 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
       var sm = document.createElement("small");
       sm.textContent = fmt(o.d.t) + " · " + num(o.d.g, 1) + " g alkoholia";
       sp.appendChild(sm);
+      var e = document.createElement("button");
+      e.type = "button"; e.textContent = "Muokkaa";
+      e.addEventListener("click", function () { startEdit(o.idx); });
       var b = document.createElement("button");
       b.type = "button"; b.textContent = "Poista";
-      b.addEventListener("click", function () { state.drinks.splice(o.idx, 1); save(); render(); });
-      li.appendChild(sp); li.appendChild(b); ul.appendChild(li);
+      b.addEventListener("click", function () {
+        state.drinks.splice(o.idx, 1);
+        if (editing !== null) stopEdit();
+        save(); render();
+      });
+      var box = document.createElement("div");
+      box.className = "btns"; box.appendChild(e); box.appendChild(b);
+      li.appendChild(sp); li.appendChild(box); ul.appendChild(li);
     });
     $("emptyMsg").hidden = state.drinks.length > 0;
     $("clear").hidden = state.drinks.length === 0;
@@ -313,9 +336,32 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
     if (!isFinite(t) || !(ml > 0) || !(abv > 0)) return;
     var g = ml * abv / 100 * G_PER_ML;
     var label = (qty > 1 ? qty + " × " : "") + num(ml, 0) + " ml, " + num(abv, 1) + " %";
-    state.drinks.push({ t: t, g: g * qty, label: label });
+    var d = { t: t, g: g * qty, label: label, ml: ml, abv: abv, qty: qty };
+    if (editing !== null && state.drinks[editing]) state.drinks[editing] = d; else state.drinks.push(d);
+    stopEdit();
     save(); render();
   });
+
+  var editing = null;
+  function startEdit(idx) {
+    var d = state.drinks[idx];
+    if (!d) return;
+    editing = idx;
+    $("when").value = localInput(new Date(d.t));
+    $("ml").value = d.ml || 330;
+    $("abv").value = d.abv || 4.7;
+    $("qty").value = d.qty || 1;
+    $("submitBtn").textContent = "Tallenna muutokset";
+    $("cancelEdit").hidden = false;
+    $("form").scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+  function stopEdit() {
+    editing = null;
+    $("submitBtn").textContent = "Lisää ja laske";
+    $("cancelEdit").hidden = true;
+    $("when").value = localInput(new Date());
+  }
+  $("cancelEdit").addEventListener("click", stopEdit);
 
   $("clear").addEventListener("click", function () { state.drinks = []; save(); render(); });
 
@@ -326,10 +372,12 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
     if (h > 0) state.height = h;
     if (a > 0) state.age = a;
     if (b > 0) state.beta = b;
+    var m = parseFloat($("margin").value);
+    if (m >= 0) state.margin = m;
     state.sex = $("sex").value;
     save(); render();
   }
-  ["weight", "height", "age", "sex", "beta"].forEach(function (id) { $(id).addEventListener("change", readSettings); });
+  ["weight", "height", "age", "sex", "beta", "margin"].forEach(function (id) { $(id).addEventListener("change", readSettings); });
   $("food").addEventListener("change", function () { state.food = $("food").value; save(); render(); });
 
   load();
@@ -338,6 +386,7 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
   $("beta").value = state.beta; $("sex").value = state.sex;
   if (!FOOD[state.food]) state.food = "light";
   $("food").value = state.food;
+  $("margin").value = state.margin;
   $("when").value = localInput(new Date());
   render();
   setInterval(render, 60000);
