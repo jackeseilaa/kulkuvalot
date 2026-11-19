@@ -97,6 +97,13 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
       <label>Kappaletta
         <input type="number" id="qty" inputmode="numeric" min="1" step="1" value="1" required>
       </label>
+      <label class="wide">Ruokailu (vaikuttaa imeytymiseen)
+        <select id="food">
+          <option value="empty">Tyhjä vatsa</option>
+          <option value="light">Kevyt syöminen</option>
+          <option value="full">Täysi ateria viimeisen 2 h aikana</option>
+        </select>
+      </label>
       <button class="primary" type="submit">Lisää ja laske</button>
     </form>
     <details class="settings">
@@ -134,7 +141,7 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
     <p><button type="button" id="clear" hidden>Tyhjennä kaikki</button></p>
   </section>
 
-  <p class="note">Arvio perustuu Widmarkin kaavaan ja Watsonin kehon vesimäärän kaavaan, jotka käyttävät ikää, pituutta ja painoa (alkoholia 0,789 g/ml, tasainen palaminen, imeytyminen heti). Todellinen arvo vaihtelee ihmisen, syömisen ja väsymyksen mukaan. Työajossa ja ennen ajoa jätä reilusti ylimääräistä aikaa. Ajokunnon varmistaa vain puhallus.</p>
+  <p class="note">Arvio perustuu Widmarkin kaavaan ja Watsonin kehon vesimäärän kaavaan, jotka käyttävät ikää, pituutta ja painoa (alkoholia 0,789 g/ml, tasainen palaminen, imeytyminen ruokailun mukaan). Aikaisin ja viimeisin haihtumisaika kattavat palamisnopeuden vaihtelun, joka on tyypillisesti 0,10–0,20 ‰ tunnissa. Laskuri ei tiedä lääkkeistä, sairauksista, väsymyksestä tai maksan kunnosta, jotka voivat hidastaa palamista. Todellinen arvo vaihtelee ihmisen, syömisen ja väsymyksen mukaan. Työajossa ja ennen ajoa jätä reilusti ylimääräistä aikaa. Ajokunnon varmistaa vain puhallus.</p>
 </main>
 
 <script>
@@ -147,7 +154,7 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
   var G_PER_ML = 0.789;
   var KEY = "juomalaskuri-v1";
   var $ = function (id) { return document.getElementById(id); };
-  var state = { drinks: [], weight: 85, height: 188, age: 64, sex: "m", beta: 0.15 };
+  var state = { drinks: [], weight: 85, height: 188, age: 64, sex: "m", beta: 0.15, food: "light" };
   // Watsonin kaava: kehon vesimäärä (l) -> jakautumistilavuus verelle (kg)
   function distKg() {
     var w = state.weight, h = state.height, a = state.age;
@@ -179,23 +186,29 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
   }
   function num(x, dec) { return x.toFixed(dec).replace(".", ","); }
 
-  function simulate() {
+  // Ruoka hidastaa imeytymistä (ka = imeytymisnopeus 1/min) ja pienentää imeytyvää osuutta (F)
+  var FOOD = { empty: { ka: 0.07, F: 1.0 }, light: { ka: 0.04, F: 0.95 }, full: { ka: 0.02, F: 0.9 } };
+
+  function simulate(beta) {
     var ds = state.drinks.slice().sort(function (a, b) { return a.t - b.t; });
     if (!ds.length) return null;
-    var STEP = 60000, kg = distKg(), perMin = state.beta / 60;
+    var STEP = 60000, kg = distKg(), perMin = beta / 60, f = FOOD[state.food] || FOOD.light;
     var lastT = ds[ds.length - 1].t;
-    var t = ds[0].t, bac = 0, i = 0, pts = [], peak = 0, under05 = null, zero = null, nowBac = null;
+    var t = ds[0].t, A = 0, S = 0, i = 0, pts = [], peak = 0, under05 = null, zero = null, nowBac = null;
     var now = Date.now(), cap = t + 96 * 3600000;
     while (t <= cap) {
-      while (i < ds.length && ds[i].t <= t) { bac += ds[i].g / kg; i++; }
+      while (i < ds.length && ds[i].t <= t) { S += ds[i].g; i++; }
+      var ab = S * (1 - Math.exp(-f.ka));
+      S -= ab; A += ab * f.F;
+      var bac = A / kg;
       if (bac > peak) peak = bac;
       pts.push([t, bac]);
       if (nowBac === null && t >= now) nowBac = bac;
       if (i === ds.length) {
-        if (under05 === null && bac <= 0.5) under05 = t;
-        if (bac <= 0) { zero = t; break; }
+        if (under05 === null && bac <= 0.5 && bac + S * f.F / kg <= 0.5) under05 = t;
+        if (S < 0.01 && A <= 0) { zero = t; break; }
       }
-      bac = Math.max(0, bac - perMin);
+      A = Math.max(0, A - perMin * kg);
       t += STEP;
     }
     if (nowBac === null) nowBac = 0;
@@ -215,6 +228,8 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
     if (sim.zero > sim.now) html += '<div class="sub">Vielä ' + dur(sim.zero - sim.now) + '</div>';
     html += '<div style="margin-top:10px"><span class="pill ' + cls + '">' + status + '</span></div>';
     html += '<div class="rows">';
+    html += '<div class="row"><span>Aikaisintaan (nopea palaminen)</span><b>' + fmt(sim.fastZero) + '</b></div>';
+    html += '<div class="row"><span>Varmasti viimeistään (hidas palaminen)</span><b>' + fmt(sim.slowZero) + '</b></div>';
     html += '<div class="row"><span>Arvio nyt</span><b>' + num(sim.nowBac, 2) + ' ‰</b></div>';
     html += '<div class="row"><span>Huippu</span><b>' + num(sim.peak, 2) + ' ‰</b></div>';
     html += '<div class="row"><span>Alle 0,5 ‰</span><b>' + (sim.under05 <= sim.lastT && sim.peak < 0.5 ? "koko ajan" : fmt(sim.under05)) + '</b></div>';
@@ -275,7 +290,11 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
   }
 
   function render() {
-    var sim = simulate();
+    var sim = simulate(state.beta);
+    if (sim) {
+      sim.fastZero = simulate(state.beta * 1.33).zero;
+      sim.slowZero = simulate(state.beta * 0.67).zero;
+    }
     renderResult(sim); renderChart(sim); renderList();
   }
 
@@ -311,11 +330,14 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
     save(); render();
   }
   ["weight", "height", "age", "sex", "beta"].forEach(function (id) { $(id).addEventListener("change", readSettings); });
+  $("food").addEventListener("change", function () { state.food = $("food").value; save(); render(); });
 
   load();
   if (state.sex !== "m" && state.sex !== "f") state.sex = "m";
   $("weight").value = state.weight; $("height").value = state.height; $("age").value = state.age;
   $("beta").value = state.beta; $("sex").value = state.sex;
+  if (!FOOD[state.food]) state.food = "light";
+  $("food").value = state.food;
   $("when").value = localInput(new Date());
   render();
   setInterval(render, 60000);
