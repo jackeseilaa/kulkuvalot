@@ -102,11 +102,17 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
     <details class="settings">
       <summary>Omat tiedot</summary>
       <form id="settingsForm" style="margin-top:10px">
-        <label>Paino (kg)
-          <input type="number" id="weight" inputmode="decimal" min="30" max="250" step="any" value="80">
+        <label>Ikä (v)
+          <input type="number" id="age" inputmode="numeric" min="18" max="110" step="1" value="64">
         </label>
-        <label>Sukupuoli (laskentakerroin)
-          <select id="sex"><option value="0.7">Mies (0,70)</option><option value="0.6">Nainen (0,60)</option></select>
+        <label>Pituus (cm)
+          <input type="number" id="height" inputmode="decimal" min="120" max="230" step="any" value="188">
+        </label>
+        <label>Paino (kg)
+          <input type="number" id="weight" inputmode="decimal" min="30" max="250" step="any" value="85">
+        </label>
+        <label>Sukupuoli
+          <select id="sex"><option value="m">Mies</option><option value="f">Nainen</option></select>
         </label>
         <label>Palaminen (‰ / h)
           <input type="number" id="beta" inputmode="decimal" min="0.05" max="0.3" step="0.01" value="0.15">
@@ -128,7 +134,7 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
     <p><button type="button" id="clear" hidden>Tyhjennä kaikki</button></p>
   </section>
 
-  <p class="note">Arvio perustuu Widmarkin kaavaan (alkoholia 0,789 g/ml, tasainen palaminen, imeytyminen heti). Todellinen arvo vaihtelee ihmisen, syömisen ja väsymyksen mukaan. Työajossa ja ennen ajoa jätä reilusti ylimääräistä aikaa. Ajokunnon varmistaa vain puhallus.</p>
+  <p class="note">Arvio perustuu Widmarkin kaavaan ja Watsonin kehon vesimäärän kaavaan, jotka käyttävät ikää, pituutta ja painoa (alkoholia 0,789 g/ml, tasainen palaminen, imeytyminen heti). Todellinen arvo vaihtelee ihmisen, syömisen ja väsymyksen mukaan. Työajossa ja ennen ajoa jätä reilusti ylimääräistä aikaa. Ajokunnon varmistaa vain puhallus.</p>
 </main>
 
 <script>
@@ -141,7 +147,13 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
   var G_PER_ML = 0.789;
   var KEY = "juomalaskuri-v1";
   var $ = function (id) { return document.getElementById(id); };
-  var state = { drinks: [], weight: 80, r: 0.7, beta: 0.15 };
+  var state = { drinks: [], weight: 85, height: 188, age: 64, sex: "m", beta: 0.15 };
+  // Watsonin kaava: kehon vesimäärä (l) -> jakautumistilavuus verelle (kg)
+  function distKg() {
+    var w = state.weight, h = state.height, a = state.age;
+    var tbw = state.sex === "f" ? -2.097 + 0.1069 * h + 0.2466 * w : 2.447 - 0.09516 * a + 0.1074 * h + 0.3362 * w;
+    return tbw / 0.8 * 1.055;
+  }
 
   function load() {
     try { var s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s) { state = Object.assign(state, s); } } catch (e) {}
@@ -170,7 +182,7 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
   function simulate() {
     var ds = state.drinks.slice().sort(function (a, b) { return a.t - b.t; });
     if (!ds.length) return null;
-    var STEP = 60000, kg = state.weight * state.r, perMin = state.beta / 60;
+    var STEP = 60000, kg = distKg(), perMin = state.beta / 60;
     var lastT = ds[ds.length - 1].t;
     var t = ds[0].t, bac = 0, i = 0, pts = [], peak = 0, under05 = null, zero = null, nowBac = null;
     var now = Date.now(), cap = t + 96 * 3600000;
@@ -290,15 +302,20 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
 
   function readSettings() {
     var w = parseFloat($("weight").value), b = parseFloat($("beta").value);
+    var h = parseFloat($("height").value), a = parseFloat($("age").value);
     if (w > 0) state.weight = w;
+    if (h > 0) state.height = h;
+    if (a > 0) state.age = a;
     if (b > 0) state.beta = b;
-    state.r = parseFloat($("sex").value);
+    state.sex = $("sex").value;
     save(); render();
   }
-  ["weight", "sex", "beta"].forEach(function (id) { $(id).addEventListener("change", readSettings); });
+  ["weight", "height", "age", "sex", "beta"].forEach(function (id) { $(id).addEventListener("change", readSettings); });
 
   load();
-  $("weight").value = state.weight; $("beta").value = state.beta; $("sex").value = String(state.r);
+  if (state.sex !== "m" && state.sex !== "f") state.sex = "m";
+  $("weight").value = state.weight; $("height").value = state.height; $("age").value = state.age;
+  $("beta").value = state.beta; $("sex").value = state.sex;
   $("when").value = localInput(new Date());
   render();
   setInterval(render, 60000);
