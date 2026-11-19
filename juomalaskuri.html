@@ -68,6 +68,8 @@ li:first-child { border-top: 0; padding-top: 0; }
 li span { min-width: 0; }
 li small { color: var(--muted); display: block; }
 li button { padding: 4px 10px; font-weight: 500; }
+.chips button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.wide { grid-column: 1 / -1; }
 .btns { display: flex; gap: 6px; flex-shrink: 0; }
 button.cancel { grid-column: 1 / -1; }
 .driver { margin-top: 14px; border: 2px solid currentColor; border-radius: 8px; padding: 10px 12px; }
@@ -93,6 +95,7 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
       <label class="wide">Kellonaika
         <input type="datetime-local" id="when" required>
       </label>
+      <div class="wide chips" id="timeChips" style="margin:0"></div>
       <label>Määrä (ml)
         <input type="number" id="ml" inputmode="decimal" min="1" step="any" value="330" required>
       </label>
@@ -102,13 +105,10 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
       <label>Kappaletta
         <input type="number" id="qty" inputmode="numeric" min="1" step="1" value="1" required>
       </label>
-      <label class="wide">Ruokailu (vaikuttaa imeytymiseen)
-        <select id="food">
-          <option value="empty">Tyhjä vatsa</option>
-          <option value="light">Kevyt syöminen</option>
-          <option value="full">Täysi ateria viimeisen 2 h aikana</option>
-        </select>
-      </label>
+      <div class="wide">
+        <div class="note" style="margin-bottom:4px">Ruokailu (vaikuttaa imeytymiseen)</div>
+        <div class="chips seg" id="foodBtns" style="margin:0"></div>
+      </div>
       <button class="primary" type="submit" id="submitBtn">Lisää ja laske</button>
       <button class="cancel" type="button" id="cancelEdit" hidden>Peruuta muokkaus</button>
     </form>
@@ -157,7 +157,7 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
 (function () {
   var PRESETS = [
     ["Keskiolut 0,33 l", 330, 4.7], ["Keskiolut 0,5 l", 500, 4.7], ["Siideri 0,33 l", 330, 4.5],
-    ["Vahva olut 0,33 l", 330, 7], ["Viini 12 cl", 120, 12], ["Viini 16 cl", 160, 12],
+    ["Vahva olut 0,33 l", 330, 7], ["Viini 12 cl", 120, 12], ["Viini 16 cl", 160, 12], ["Kuohuviini 12 cl", 120, 12],
     ["Shotti 4 cl", 40, 40], ["Drinkki 4 cl", 40, 37.5]
   ];
   var G_PER_ML = 0.789;
@@ -378,14 +378,31 @@ svg text { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
     save(); render();
   }
   ["weight", "height", "age", "sex", "beta", "margin"].forEach(function (id) { $(id).addEventListener("change", readSettings); });
-  $("food").addEventListener("change", function () { state.food = $("food").value; save(); render(); });
+  var FOODS = [["empty", "Tyhjä vatsa"], ["light", "Kevyt syöminen"], ["full", "Täysi ateria (2 h sisällä)"]];
+  function markFood() {
+    Array.prototype.forEach.call($("foodBtns").children, function (b) {
+      b.setAttribute("aria-pressed", b.getAttribute("data-v") === state.food ? "true" : "false");
+    });
+  }
+  FOODS.forEach(function (f) {
+    var b = document.createElement("button");
+    b.type = "button"; b.textContent = f[1]; b.setAttribute("data-v", f[0]);
+    b.addEventListener("click", function () { state.food = f[0]; markFood(); save(); render(); });
+    $("foodBtns").appendChild(b);
+  });
+  [["Nyt", 0], ["−15 min", 15], ["−30 min", 30], ["−1 h", 60], ["−2 h", 120], ["−3 h", 180]].forEach(function (c) {
+    var b = document.createElement("button");
+    b.type = "button"; b.textContent = c[0];
+    b.addEventListener("click", function () { $("when").value = localInput(new Date(Date.now() - c[1] * 60000)); });
+    $("timeChips").appendChild(b);
+  });
 
   load();
   if (state.sex !== "m" && state.sex !== "f") state.sex = "m";
   $("weight").value = state.weight; $("height").value = state.height; $("age").value = state.age;
   $("beta").value = state.beta; $("sex").value = state.sex;
   if (!FOOD[state.food]) state.food = "light";
-  $("food").value = state.food;
+  markFood();
   $("margin").value = state.margin;
   $("when").value = localInput(new Date());
   render();
