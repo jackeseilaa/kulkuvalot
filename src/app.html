@@ -686,7 +686,7 @@ a{color:var(--brass)}
 (() => {
 'use strict';
 // versio: APP_VERSION päivitetään käsin, julkaisuaika tulee build.sh:sta
-const APP_VERSION = '2.33', APP_BUILD = '__BUILD__';
+const APP_VERSION = '2.34', APP_BUILD = '__BUILD__';
 const VER_TEXT = `v${APP_VERSION} · ${APP_BUILD.startsWith('__') ? 'esikatselu' : APP_BUILD}`;
 document.querySelectorAll('.ver').forEach(e => e.textContent = VER_TEXT);
 const D2R = Math.PI / 180, W = 1000, HY = 432, TOP = 44, ELEV = 5, EPS = 0.01;
@@ -2705,7 +2705,9 @@ const SIM = (() => {
   // --- kaikuluotain: syvyys veneen kohdalla, kaikukuva ja matalan veden hälytys ---
   const DRAFT = 0.8;                                                   // veneen syväys
   function sound(dt) {
-    const d = depthAt(s.x, s.y);
+    // 20 m:n syvyysruudukko arvioi kapeat salmet liian mataliksi (syvyys interpoloidaan rannasta alkaen);
+    // väyläalueella syvyys on vähintään väylän kulkusyvyys (Väylävirasto)
+    const fw = fairwayAt(s.x, s.y), d0 = depthAt(s.x, s.y), d = fw && fw.d > 0 ? Math.max(d0 || 0, fw.d) : d0;
     s.depth = d;
     if (d != null && d < DRAFT && s.v > .3) {
       s.aground = true; s.groundings++; s.v = 0; s.rot = 0;
